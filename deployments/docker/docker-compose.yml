@@ -1,0 +1,148 @@
+# ================================================================================
+# DOCKER COMPOSE - Local Development
+# ================================================================================
+#
+# DOCKER COMPOSE là gì?
+# - Tool để define và run multi-container Docker applications
+# - Define services, networks, volumes trong 1 file YAML
+# - `docker compose up` starts everything
+#
+# YAML FORMAT:
+# - Indentation matters (spaces, không dùng tabs)
+# - Key-value pairs
+# - Lists dùng dash (-)
+#
+# ================================================================================
+
+# version: '3.8'  # Removed - obsolete in Docker Compose V2
+
+# ================================================================================
+# SERVICES
+# ================================================================================
+# Mỗi service = 1 container
+# Compose tự tạo network để services communicate với nhau
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine  # Alpine = smaller image size
+    container_name: pmv-postgres
+
+    # Environment variables cho postgres container
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pmv
+
+    # Port mapping: host:container
+    # Có thể access postgres từ host machine via localhost:5432
+    ports:
+      - "5432:5432"
+
+    # Volume: Persist data khi container restart
+    # Named volume 'postgres_data' được Docker manage
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Init scripts chạy khi database được tạo lần đầu
+      - ./init-scripts:/docker-entrypoint-initdb.d
+
+    # Health check: Compose sẽ check service healthy trước khi start dependent services
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Redis (Cache & Message Queue)
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: pmv-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    # Redis persistence: save to disk
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # API Service (Go)
+  # ============================================
+  # Comment out khi develop locally (chạy Go trực tiếp)
+  # Uncomment khi muốn test full containerized setup
+  # api:
+  #   build:
+  #     context: ../../services/api
+  #     dockerfile: Dockerfile
+  #   container_name: pmv-api
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - PORT=8080
+  #     - ENVIRONMENT=development
+  #     - DATABASE_URL=postgres://postgres:postgres@postgres:5432/pmv?sslmode=disable
+  #     - REDIS_URL=redis://redis:6379
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+
+  # ============================================
+  # Adminer (Database UI) - Optional
+  # ============================================
+  adminer:
+    image: adminer:latest
+    container_name: pmv-adminer
+    ports:
+      - "8081:8080"  # Access at http://localhost:8081
+    depends_on:
+      - postgres
+
+# ================================================================================
+# VOLUMES
+# ================================================================================
+# Named volumes được Docker manage
+# Data persist qua container restarts
+# `docker volume ls` để xem volumes
+# `docker volume rm <name>` để xóa
+
+volumes:
+  postgres_data:
+  redis_data:
+
+# ================================================================================
+# NETWORKS (Optional - Compose tự tạo default network)
+# ================================================================================
+# networks:
+#   pmv-network:
+#     driver: bridge
+
+# ================================================================================
+# COMMANDS:
+# ================================================================================
+# Start all services:
+#   docker compose up -d
+#
+# View logs:
+#   docker compose logs -f
+#   docker compose logs -f postgres
+#
+# Stop all:
+#   docker compose down
+#
+# Stop và xóa volumes (xóa data):
+#   docker compose down -v
+#
+# Rebuild images:
+#   docker compose build
+#   docker compose up -d --build
+# ================================================================================
