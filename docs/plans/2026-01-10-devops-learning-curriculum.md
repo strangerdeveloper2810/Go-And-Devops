@@ -1,8 +1,39 @@
 # DevOps Learning Curriculum - Poor Man's Vercel
 
 > Chương trình học DevOps + Go Backend thông qua xây dựng Platform-as-a-Service từ đầu
+>
+> **Target**: Backend Go / Fullstack React + Go (mid-senior)
+> **Target companies**: Axon, VNG, ANZ
+> **Timeline**: 1.5 - 2 tháng
 
 *Created: 2026-01-10 | Updated: 2026-02-22*
+
+---
+
+## Skills Map theo JD (Axon / VNG / ANZ)
+
+Tổng hợp từ JD thực tế của 3 công ty + market research:
+
+| Skill | Axon | VNG | ANZ | Plan Phase |
+|-------|------|-----|-----|------------|
+| Go fundamentals, idioms | Required | Required | Required | 1 DONE |
+| REST API design | Required | Required | Required | 1 DONE |
+| Clean Architecture / SOLID | Required | Required | Required | 1 DONE |
+| PostgreSQL / SQL | Required | Required | Required | 1 DONE |
+| Docker | Required | Required | Plus | 2 |
+| **Testing (unit, integration, mock)** | Required | Required | Required | **3.1** |
+| **Goroutine, concurrency patterns** | Required | Required | Required | **3.2** |
+| **Microservices architecture** | Required | Required | Required | **3** |
+| **Message Queue (Kafka/Redis)** | Required | Required | Plus | **3.2** |
+| **gRPC** | Plus | Required | Plus | **NEW 3.6** |
+| **DB optimization (indexing, N+1)** | Expected | Required | Expected | **NEW 3.1** |
+| Kubernetes | Required | Plus | Plus | 4 |
+| CI/CD | Required | Required | Plus | 3-5 |
+| **AWS/Cloud basics** | Required | Plus | Plus | **NEW 4.6** |
+| Monitoring (Prometheus/Grafana) | Plus | Plus | Plus | 5 |
+| **GraphQL** | Axon dùng | - | - | Optional |
+| **English communication** | Required | Required | Required | Self-study |
+| System design interview | Required | Required | Required | Throughout |
 
 ---
 
@@ -242,12 +273,37 @@ deployments/docker/
 - [ ] Push build job vào Redis queue
 - [ ] Test: dùng curl simulate webhook
 
-#### 3.1.4 Testing
+#### 3.1.4 Testing (QUAN TRỌNG - mọi JD đều hỏi)
 - [ ] Hiểu Go testing (`_test.go` files, `go test`)
+- [ ] **Table-driven tests** (Go convention, interview hay hỏi)
+  ```go
+  tests := []struct {
+      name     string
+      input    string
+      expected int
+      wantErr  bool
+  }{...}
+  for _, tt := range tests { t.Run(tt.name, func(t *testing.T) {...}) }
+  ```
+- [ ] **Mock interface** dùng `gomock` hoặc manual mock
 - [ ] Unit test cho service layer (mock repository)
-- [ ] Unit test cho handler layer (mock service)
-- [ ] Integration test cho repository (test database)
+- [ ] Unit test cho handler layer (mock service, `httptest`)
+- [ ] Integration test cho repository (test database thật)
+- [ ] **Test coverage**: `go test -cover ./...`
+- [ ] **Benchmark test**: `func BenchmarkXxx(b *testing.B)`
 - [ ] `make test` chạy all tests
+
+#### 3.1.5 Database Optimization (mid-senior cần biết)
+- [ ] **Indexing**: tạo index cho columns hay query (WHERE, JOIN)
+  ```sql
+  CREATE INDEX idx_projects_status ON projects(status);
+  CREATE INDEX idx_projects_name ON projects(name) WHERE deleted_at IS NULL;
+  ```
+- [ ] **EXPLAIN ANALYZE**: đọc query plan
+- [ ] **N+1 Problem**: query trong loop → dùng JOIN hoặc batch query
+- [ ] **Connection pool tuning**: MaxOpenConns, MaxIdleConns, ConnMaxLifetime
+- [ ] **Pagination**: LIMIT/OFFSET hoặc cursor-based pagination
+- [ ] Apply vào project: thêm pagination cho List endpoints
 
 ### Module 3.2: Builder Worker (Go service mới)
 
@@ -391,6 +447,56 @@ deployments/docker/
 - [ ] Deploy button
 - [ ] Real-time deployment logs (SSE/WebSocket)
 - [ ] Authentication (JWT flow)
+
+### Module 3.6: gRPC (inter-service communication) - NEW
+
+**Tại sao cần:** Axon dùng Protobuf, VNG yêu cầu gRPC, hầu hết microservices dùng gRPC thay REST cho internal communication.
+
+**Lý thuyết cần hiểu:**
+- gRPC vs REST: binary (Protobuf) vs text (JSON), nhanh hơn ~10x
+- Protocol Buffers (`.proto` files) = schema definition
+- Unary RPC, Server streaming, Client streaming, Bidirectional
+- gRPC dùng cho internal (service ↔ service), REST dùng cho external (client ↔ API)
+
+**Tasks:**
+- [ ] Install: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`
+- [ ] Install: `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
+- [ ] Viết `.proto` file cho Builder service:
+  ```protobuf
+  service BuilderService {
+    rpc TriggerBuild(BuildRequest) returns (BuildResponse);
+    rpc GetBuildStatus(StatusRequest) returns (stream BuildLog); // streaming
+  }
+  ```
+- [ ] Generate Go code từ proto: `protoc --go_out=. --go-grpc_out=.`
+- [ ] Implement gRPC server trong Builder service
+- [ ] Implement gRPC client trong API service
+- [ ] So sánh performance gRPC vs REST (cùng data)
+- [ ] **Lab**: API gọi Builder qua gRPC thay vì Redis queue
+
+---
+
+### Module 3.7: Go Concurrency thực hành - NEW
+
+**Tại sao cần:** Mọi JD mid-senior đều hỏi goroutine/channel. Phase 1 chỉ học theory, cần thực hành.
+
+**Tasks:**
+- [ ] **Worker Pool pattern**: N goroutines xử lý jobs từ channel
+  ```go
+  jobs := make(chan Job, 100)
+  for i := 0; i < numWorkers; i++ {
+      go worker(jobs)
+  }
+  ```
+- [ ] **Context cancellation**: `context.WithTimeout`, `context.WithCancel`
+- [ ] **sync.WaitGroup**: đợi nhiều goroutines xong
+- [ ] **sync.Mutex**: protect shared data (race condition)
+- [ ] **select statement**: listen multiple channels
+- [ ] **errgroup**: parallel tasks with error handling
+- [ ] **Race detector**: `go test -race ./...`
+- [ ] Apply vào project: Builder Worker dùng worker pool + context
+
+---
 
 ### Files sẽ tạo (Phase 3):
 ```
@@ -547,6 +653,26 @@ deployments/docker/
 - [ ] Install ArgoCD trên cluster
 - [ ] Config ArgoCD watch git repo
 - [ ] Test: push code → CI build image → ArgoCD auto deploy
+
+### Module 4.6: Cloud Basics (AWS) - NEW
+
+**Tại sao cần:** Axon yêu cầu cloud experience, VNG/ANZ là plus. Ít nhất biết deploy lên cloud.
+
+**Lý thuyết cần hiểu:**
+- AWS core services: EC2 (VM), S3 (storage), RDS (managed DB), ECS/EKS (containers)
+- IAM (permissions), VPC (networking), Security Groups (firewall)
+- Infrastructure as Code (Terraform basics)
+
+**Tasks:**
+- [ ] Tạo AWS Free Tier account
+- [ ] Deploy Go API lên EC2 (manual)
+- [ ] Setup RDS PostgreSQL (managed database)
+- [ ] Push Docker image lên ECR (Elastic Container Registry)
+- [ ] (Optional) Deploy lên ECS Fargate (serverless containers)
+- [ ] (Optional) Terraform: viết infrastructure as code
+- [ ] **Lab**: Full stack chạy trên AWS (EC2 + RDS + Redis ElastiCache)
+
+---
 
 ### Files sẽ tạo (Phase 4):
 ```
@@ -723,6 +849,34 @@ Push code → GitHub Actions:
 - [ ] `.github/workflows/ci.yml` - Lint, test, build
 - [ ] `.github/workflows/cd.yml` - Build image, push registry
 - [ ] (Phase 4) ArgoCD integration
+
+---
+
+## Interview Prep (song song với learning)
+
+### System Design (Axon/VNG hay hỏi)
+- [ ] Design URL shortener (basic)
+- [ ] Design rate limiter (middleware)
+- [ ] Design notification system (queue-based)
+- [ ] Design deployment pipeline (chính project này)
+- [ ] Practice: vẽ diagram, estimate scale, discuss trade-offs
+
+### Go Interview Questions (thường gặp)
+- [ ] Goroutine vs Thread
+- [ ] Channel buffered vs unbuffered
+- [ ] Context package - khi nào dùng, tại sao
+- [ ] Interface implicit implementation - lợi ích
+- [ ] Slice internal (backing array, len vs cap)
+- [ ] Map concurrency safety (sync.Map vs mutex)
+- [ ] Defer, panic, recover
+- [ ] Garbage collector trong Go (tricolor mark & sweep)
+- [ ] `init()` function execution order
+
+### Coding Challenges (Go)
+- [ ] LeetCode medium bằng Go (arrays, strings, maps)
+- [ ] Implement concurrent-safe cache (goroutine + mutex)
+- [ ] Implement rate limiter (token bucket)
+- [ ] Implement worker pool pattern
 
 ---
 
