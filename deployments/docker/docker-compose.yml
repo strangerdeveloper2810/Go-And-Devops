@@ -78,23 +78,24 @@ services:
   # ============================================
   # Comment out khi develop locally (chạy Go trực tiếp)
   # Uncomment khi muốn test full containerized setup
-  # api:
-  #   build:
-  #     context: ../../services/api
-  #     dockerfile: Dockerfile
-  #   container_name: pmv-api
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     - PORT=8080
-  #     - ENVIRONMENT=development
-  #     - DATABASE_URL=postgres://postgres:postgres@postgres:5432/pmv?sslmode=disable
-  #     - REDIS_URL=redis://redis:6379
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
+  api:
+    build:
+      context: ../../services/api
+      dockerfile: Dockerfile
+    image: pmv-api:latest
+    container_name: pmv-api
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgres://postgres:postgres@postgres:5432/pmv?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   # ============================================
   # Adminer (Database UI) - Optional
