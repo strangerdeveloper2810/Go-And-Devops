@@ -6,7 +6,7 @@
 > **Target companies**: Axon, VNG, ANZ
 > **Timeline**: 1.5 - 2 tháng
 
-*Created: 2026-01-10 | Updated: 2026-02-22*
+*Created: 2026-01-10 | Updated: 2026-03-11*
 
 ---
 
@@ -20,7 +20,7 @@ Tổng hợp từ JD thực tế của 3 công ty + market research:
 | REST API design | Required | Required | Required | 1 DONE |
 | Clean Architecture / SOLID | Required | Required | Required | 1 DONE |
 | PostgreSQL / SQL | Required | Required | Required | 1 DONE |
-| Docker | Required | Required | Plus | 2 |
+| Docker | Required | Required | Plus | 2 DONE |
 | **Testing (unit, integration, mock)** | Required | Required | Required | **3.1** |
 | **Goroutine, concurrency patterns** | Required | Required | Required | **3.2** |
 | **Microservices architecture** | Required | Required | Required | **3** |
@@ -115,76 +115,43 @@ deployments/docker/
 
 ---
 
-## Phase 2: Containerization ---- NEXT
+## Phase 2: Containerization ---- DONE (2026-02-25)
 
 > Mục tiêu: Đóng gói Go API thành Docker image, chạy full stack trong containers
 
-### Module 2.1: Dockerfile cho Go API
+### Module 2.1: Dockerfile cho Go API - DONE
+- [x] Viết `services/api/Dockerfile` (multi-stage build)
+  - [x] Stage 1 (`builder`): `golang:1.22-alpine`, copy source, `go build`
+  - [x] Stage 2 (`runner`): `alpine:3.19`, copy binary
+  - [x] Expose port 8080
+  - [x] `CMD ["./api"]`
+- [x] Hiểu tại sao multi-stage (image ~39MB thay vì 1GB)
+- [x] Build & test local: `docker build -t pmv-api:latest .`
+- **Lỗi mắc**: COPY destination `/` thay vì `./`, tên binary không khớp
+- **Theory**: [05-dockerfile-multi-stage.md](../theory/05-dockerfile-multi-stage.md)
 
-**Lý thuyết cần hiểu:**
-- Container vs VM (nhẹ hơn, share OS kernel)
-- Docker image = layers (mỗi instruction = 1 layer)
-- Multi-stage build = build ở stage 1, copy binary sang stage 2 (image nhỏ)
+### Module 2.2: Docker Compose Full Stack - DONE
+- [x] Uncomment `api` service trong `docker-compose.yml`
+- [x] Config environment variables cho container
+- [x] Docker networking: containers gọi nhau bằng service name
+- [x] `depends_on` → API đợi PostgreSQL healthy
+- [x] Test: `docker compose up -d` → 4 services chạy OK
 
-**Tasks:**
-- [ ] Viết `services/api/Dockerfile`
-  - [ ] Stage 1 (`builder`): Dùng `golang:1.22-alpine`, copy source, `go build`
-  - [ ] Stage 2 (`runner`): Dùng `alpine:3.19` hoặc `scratch`, copy binary
-  - [ ] Expose port 8080
-  - [ ] `CMD ["./api"]`
-- [ ] Hiểu tại sao multi-stage (image 10MB thay vì 1GB)
-- [ ] `.dockerignore` file (giống `.gitignore` cho Docker)
-- [ ] Build & test local: `docker build -t pmv-api .`
-- [ ] Run test: `docker run -p 8080:8080 pmv-api`
+### Module 2.3: Image Optimization & Registry - DONE (concepts)
+- [x] Layer caching: COPY `go.mod`+`go.sum` trước source → cache deps
+- [x] Image tagging: `docker tag` + `image:` trong docker-compose
+- [x] Registry concepts: Docker Hub, GHCR, ECR (chưa push thật)
+- [ ] ~~Push lên registry~~ - làm sau khi cần
+- [ ] ~~Security scan~~ - optional
 
-**So sánh JS:**
-```
-# Node.js Dockerfile thường ~200MB
-# Go multi-stage Dockerfile ~10-15MB (static binary)
-# Go scratch Dockerfile ~5-8MB (minimal)
-```
-
-### Module 2.2: Docker Compose Full Stack
-
-**Lý thuyết cần hiểu:**
-- Docker networking (containers communicate qua service name)
-- `depends_on` + `condition: service_healthy`
-- Environment variables trong container vs `.env` file
-
-**Tasks:**
-- [ ] Uncomment `api` service trong `docker-compose.yml`
-- [ ] Config environment variables cho container
-  - `DATABASE_URL=postgres://postgres:postgres@postgres:5432/pmv?sslmode=disable`
-  - Lưu ý: `@postgres:` = service name (không phải `@localhost:`)
-- [ ] `depends_on` → API đợi PostgreSQL healthy mới start
-- [ ] Test: `docker compose up -d` → tất cả 4 services chạy
-- [ ] Test: `curl http://localhost:8080/api/v1/projects`
-
-**Kết quả:** 1 command `docker compose up -d` chạy toàn bộ stack
-
-### Module 2.3: Image Optimization & Registry
-
-**Lý thuyết cần hiểu:**
-- Layer caching (order Dockerfile instructions = tận dụng cache)
-- Image tagging strategies (`latest`, `v1.0.0`, `git-sha`)
-- Container registry (Docker Hub, GitHub Container Registry)
-
-**Tasks:**
-- [ ] Optimize Dockerfile layer order:
-  - COPY `go.mod` + `go.sum` trước → cache dependencies
-  - COPY source sau → chỉ rebuild khi code thay đổi
-- [ ] Tag image: `docker tag pmv-api:latest pmv-api:v1.0.0`
-- [ ] Push lên Docker Hub hoặc GitHub Container Registry
-- [ ] Security scan: `docker scout cve pmv-api`
-
-### Files sẽ tạo/sửa (Phase 2):
+### Files đã tạo (Phase 2):
 ```
 services/api/
-├── Dockerfile              # NEW - Multi-stage build
-└── .dockerignore           # NEW - Ignore files khi build
+├── Dockerfile              # Multi-stage build (~39MB)
+└── .dockerignore
 
 deployments/docker/
-└── docker-compose.yml      # EDIT - Uncomment api service
+└── docker-compose.yml      # 4 services: API, PostgreSQL, Redis, Adminer
 ```
 
 ---
@@ -238,21 +205,24 @@ deployments/docker/
 
 **Tasks:**
 
-#### 3.1.1 JWT Authentication
-- [ ] Hiểu JWT structure (Header.Payload.Signature)
-- [ ] Install: `go get github.com/golang-jwt/jwt/v5`
-- [ ] Tạo `internal/middleware/auth.go`
-  - [ ] `AuthMiddleware()` - extract + verify JWT từ header
-  - [ ] Inject user info vào `c.Set("user_id", ...)`
-- [ ] Tạo `internal/handler/auth.go`
-  - [ ] `POST /api/v1/auth/register` - tạo user + hash password
-  - [ ] `POST /api/v1/auth/login` - verify password + return JWT
-- [ ] Tạo `internal/model/user.go` - User struct
-- [ ] Tạo `internal/repository/user.go` - User CRUD
-- [ ] Tạo `internal/service/auth.go` - Auth business logic
-- [ ] SQL migration: `002_create_users.sql`
-- [ ] Apply auth middleware cho project routes
-- [ ] Test: login → get token → dùng token gọi API
+#### 3.1.1 JWT Authentication - DONE (2026-03-11)
+- [x] Hiểu JWT structure (Header.Payload.Signature)
+- [x] Install: `go get github.com/golang-jwt/jwt/v5`
+- [x] Tạo `internal/middleware/auth.go`
+  - [x] `AuthMiddleware()` - extract + verify JWT từ header
+  - [x] Inject user info vào `c.Set("user_id", ...)`
+  - [x] HMAC algorithm check (phòng algorithm confusion attack)
+- [x] Tạo `internal/handler/user.go` (auth handlers)
+  - [x] `POST /api/v1/auth/register` - tạo user + hash password
+  - [x] `POST /api/v1/auth/login` - verify password + return JWT
+- [x] Tạo `internal/model/user.go` - User struct
+- [x] Tạo `internal/repository/user.go` - User CRUD
+- [x] Tạo `internal/service/auth.go` - Auth business logic (bcrypt + JWT)
+- [x] SQL migration: `002_create_users.sql`
+- [x] Apply auth middleware cho project routes
+- [x] DI wiring: main.go → userRepo → authSvc → authHandler → SetupRoutes
+- [x] Test: register → login → get token → dùng token gọi protected API → ALL PASS
+- **Kiến thức**: bcrypt (one-way hash, salt tự extract), HS256 vs RS256, JWT secret leak nguy hiểm hơn hash leak
 
 #### 3.1.2 Deployment Management
 - [ ] Tạo `internal/model/deployment.go`

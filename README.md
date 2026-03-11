@@ -25,17 +25,17 @@
 
 ### Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Go (Gin framework) |
-| Database | PostgreSQL |
-| Cache/Queue | Redis |
-| Proxy | Traefik |
-| Container | Docker |
-| Orchestration | Kubernetes |
-| CI/CD | GitHub Actions + ArgoCD |
-| Monitoring | Prometheus + Grafana + Loki |
-| Frontend | Next.js |
+| Layer         | Technology                  |
+| ------------- | --------------------------- |
+| Backend       | Go (Gin framework)          |
+| Database      | PostgreSQL                  |
+| Cache/Queue   | Redis                       |
+| Proxy         | Traefik                     |
+| Container     | Docker                      |
+| Orchestration | Kubernetes                  |
+| CI/CD         | GitHub Actions + ArgoCD     |
+| Monitoring    | Prometheus + Grafana + Loki |
+| Frontend      | Next.js                     |
 
 ---
 
@@ -60,11 +60,11 @@ make docker-up
 docker ps
 ```
 
-| Service | URL | Mục đích |
-|---------|-----|----------|
-| PostgreSQL | `localhost:5432` | Database chính |
-| Redis | `localhost:6379` | Cache & Message Queue |
-| Adminer | http://localhost:8081 | Database UI |
+| Service    | URL                   | Mục đích              |
+| ---------- | --------------------- | --------------------- |
+| PostgreSQL | `localhost:5432`      | Database chính        |
+| Redis      | `localhost:6379`      | Cache & Message Queue |
+| Adminer    | http://localhost:8081 | Database UI           |
 
 ### 3. Run API Server
 
@@ -154,13 +154,13 @@ Request → Router → Handler → Service → Repository → PostgreSQL
                                                    ← Response
 ```
 
-| Layer | Folder | Vai trò | So sánh Express/NestJS |
-|-------|--------|---------|----------------------|
-| Entry | `cmd/api/main.go` | DI wiring, start server | `app.js` / `main.ts` |
-| Handler | `internal/handler/` | Parse request, trả response | Controller |
-| Service | `internal/service/` | Business logic | Service |
-| Repository | `internal/repository/` | SQL queries | Repository |
-| Model | `internal/model/` | Data structs | Entity / DTO |
+| Layer      | Folder                 | Vai trò                     | So sánh Express/NestJS |
+| ---------- | ---------------------- | --------------------------- | ---------------------- |
+| Entry      | `cmd/api/main.go`      | DI wiring, start server     | `app.js` / `main.ts`   |
+| Handler    | `internal/handler/`    | Parse request, trả response | Controller             |
+| Service    | `internal/service/`    | Business logic              | Service                |
+| Repository | `internal/repository/` | SQL queries                 | Repository             |
+| Model      | `internal/model/`      | Data structs                | Entity / DTO           |
 
 **Dependency flow:** Handler → Service → Repository (mỗi layer chỉ biết layer ngay dưới)
 
@@ -168,19 +168,52 @@ Request → Router → Handler → Service → Repository → PostgreSQL
 
 ## API Endpoints
 
-| Method | Endpoint | Status | Mô tả |
-|--------|----------|--------|--------|
-| GET | `/health` | 200 | Health check |
-| GET | `/ready` | 200 | Readiness check |
-| GET | `/api/v1/projects` | 200 | List all projects |
-| GET | `/api/v1/projects/:id` | 200 | Get project by ID |
-| POST | `/api/v1/projects` | 201 | Create new project |
-| PUT | `/api/v1/projects/:id` | 200 | Update project |
-| DELETE | `/api/v1/projects/:id` | 204 | Soft delete project |
+| Method | Endpoint               | Status | Mô tả               |
+| ------ | ---------------------- | ------ | ------------------- |
+| GET    | `/health`              | 200    | Health check        |
+| GET    | `/ready`               | 200    | Readiness check     |
+| GET    | `/api/v1/projects`     | 200    | List all projects   |
+| GET    | `/api/v1/projects/:id` | 200    | Get project by ID   |
+| POST   | `/api/v1/projects`     | 201    | Create new project  |
+| PUT    | `/api/v1/projects/:id` | 200    | Update project      |
+| DELETE | `/api/v1/projects/:id` | 204    | Soft delete project |
 
 ---
 
 ## Commands
+
+### Go Commands
+
+```bash
+cd services/api
+
+# --- Module & Dependencies ---
+go mod init <module-name>      # Khởi tạo module mới (tạo go.mod)
+go mod tidy                    # Dọn dẹp: thêm thiếu, xóa thừa dependencies
+go get <package>               # Cài package mới (vd: go get github.com/gin-gonic/gin)
+go get <package>@latest        # Update package lên version mới nhất
+go get <package>@v1.2.3        # Cài đúng version cụ thể
+
+# --- Build & Run ---
+go run ./cmd/api               # Chạy trực tiếp (không tạo binary)
+go build ./cmd/api             # Build ra binary
+go build ./...                 # Build tất cả packages (check lỗi compile)
+
+# --- Code Quality ---
+go fmt ./...                   # Format code (tự động sửa style)
+go vet ./...                   # Phát hiện lỗi tiềm ẩn (shadow vars, unused...)
+go test ./...                  # Chạy tất cả tests
+go test -v ./...               # Chạy tests với output chi tiết
+go test -cover ./...           # Chạy tests + báo % coverage
+
+# --- Debug & Info ---
+go env                         # Xem tất cả Go environment variables
+go env GOPATH                  # Xem 1 biến cụ thể
+go list -m all                 # List tất cả dependencies đang dùng
+go doc <package>               # Xem docs của package (vd: go doc fmt.Println)
+```
+
+### Makefile Commands
 
 ```bash
 cd services/api
@@ -195,6 +228,31 @@ make docker-up     # Start Docker containers
 make docker-down   # Stop Docker containers
 make docker-logs   # Xem Docker logs
 make clean         # Dọn build artifacts
+```
+
+### Docker Commands
+
+```bash
+# --- Docker Compose (chạy từ root project) ---
+docker compose -f deployments/docker/docker-compose.yml up -d       # Start tất cả containers
+docker compose -f deployments/docker/docker-compose.yml down        # Stop containers (giữ data)
+docker compose -f deployments/docker/docker-compose.yml down -v     # Stop + xóa data (reset DB)
+docker compose -f deployments/docker/docker-compose.yml logs -f     # Xem logs realtime
+docker compose -f deployments/docker/docker-compose.yml up -d --build  # Rebuild image rồi start
+
+# --- Docker Image ---
+docker build -t pmv-api:latest ./services/api                       # Build image từ Dockerfile
+docker images                                                       # List tất cả images
+docker tag pmv-api:latest pmv-api:1.0.0                             # Tag version cho image
+docker rmi <image>                                                  # Xóa image
+
+# --- Docker Container ---
+docker ps                      # List containers đang chạy
+docker ps -a                   # List tất cả containers (cả stopped)
+docker logs <container>        # Xem logs 1 container
+docker exec -it <container> sh # Vào shell bên trong container
+docker stop <container>        # Stop container
+docker rm <container>          # Xóa container
 ```
 
 ---
@@ -217,6 +275,7 @@ make clean         # Dọn build artifacts
 - [ ] JWT Authentication
 
 **Theory docs:**
+
 - [Go Syntax Basics](docs/theory/02-go-syntax-basics.md) - So sánh Go vs JavaScript
 - [Clean Architecture](docs/theory/01-clean-architecture.md) - Layers & dependency rule
 - [Phase 1 Recap](docs/theory/04-project-recap-phase1.md) - Tổng hợp kiến thức
@@ -244,12 +303,14 @@ make clean         # Dọn build artifacts
 > Xây dựng platform deploy app tự động - core feature của project
 
 #### 3.1 API Server (mở rộng)
+
 - [ ] JWT Authentication middleware
 - [ ] Deployment management (model + CRUD)
 - [ ] Webhook endpoints (GitHub webhook trigger build)
 - [ ] API tests (unit + integration)
 
 #### 3.2 Builder Worker (Go service mới)
+
 - [ ] Redis queue consumer (nhận build jobs)
 - [ ] Git clone service (clone repo từ GitHub)
 - [ ] Framework detection (Node.js, Go, Python)
@@ -257,18 +318,21 @@ make clean         # Dọn build artifacts
 - [ ] Docker image building (build image từ user's code)
 
 #### 3.3 Deployer (Go service mới)
+
 - [ ] Container lifecycle management (start, stop, restart)
 - [ ] Health checks cho deployed containers
 - [ ] Rolling updates (zero-downtime deploy)
 - [ ] Route registration với Traefik
 
 #### 3.4 Reverse Proxy (Traefik)
+
 - [ ] Dynamic routing (request → đúng container)
 - [ ] Auto SSL với Let's Encrypt
 - [ ] Load balancing
 - [ ] Dashboard
 
 #### 3.5 Web UI (Next.js)
+
 - [ ] Dashboard - list projects & deployments
 - [ ] Real-time deployment logs (WebSocket/SSE)
 - [ ] Project settings
@@ -316,6 +380,7 @@ make clean         # Dọn build artifacts
 ## Troubleshooting
 
 ### Docker containers không start
+
 ```bash
 # Check containers
 docker ps -a
@@ -329,6 +394,7 @@ docker compose -f deployments/docker/docker-compose.yml up -d
 ```
 
 ### Port đã bị chiếm
+
 ```bash
 # Check process dùng port 5432
 lsof -i :5432
@@ -338,6 +404,7 @@ lsof -i :8080
 ```
 
 ### API không connect được database
+
 ```bash
 # 1. Check Docker containers đang chạy
 docker ps
@@ -350,12 +417,14 @@ psql postgres://postgres:postgres@localhost:5432/pmv
 ```
 
 ### go mod lỗi
+
 ```bash
 cd services/api
 go mod tidy
 ```
 
 ### Schema database cũ (sau khi đổi SQL migration)
+
 ```bash
 # init-scripts chỉ chạy lần đầu → cần xóa volume
 cd deployments/docker
@@ -368,18 +437,22 @@ docker compose up -d      # Tạo lại từ đầu
 ## Resources
 
 **Go:**
+
 - [Go Tour](https://go.dev/tour/) - Interactive tutorial
 - [Effective Go](https://go.dev/doc/effective_go) - Best practices
 - [Go by Example](https://gobyexample.com/) - Học qua ví dụ
 
 **Docker:**
+
 - [Docker Docs](https://docs.docker.com/)
 - [Dockerfile Best Practices](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/)
 
 **Kubernetes:**
+
 - [Kubernetes Docs](https://kubernetes.io/docs/)
 - [Learn Kubernetes Basics](https://kubernetes.io/docs/tutorials/kubernetes-basics/)
 
 **Project:**
+
 - [Full Curriculum](docs/plans/2026-01-10-devops-learning-curriculum.md) - Chi tiết từng module
 - [Theory Notes](docs/theory/) - Bài học lý thuyết tiếng Việt

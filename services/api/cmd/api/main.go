@@ -45,8 +45,12 @@ func main() {
 	repo := repository.NewProjectRepository(db)
 	svc := service.NewProjectService(repo)
 	projectHandler := handler.NewProjectHandler(svc)
-	projectHandler.SetupRoutes(router)
+	projectHandler.SetupRoutes(router, cfg.JWTSecret)
 
+	userRepo := repository.NewUserRepository(db)
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret)
+	authHandler := handler.NewAuthHandler(authSvc)
+	authHandler.SetupRoutes(router)
 	// 5. Tạo HTTP server với timeout
 	// Không dùng router.Run() vì cần custom timeout + graceful shutdown
 	srv := &http.Server{
