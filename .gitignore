@@ -1,22 +1,76 @@
-# OS generated files
+# ─── OS ──────────────────────────────────────────────────────
 .DS_Store
 ._*
 Thumbs.db
+desktop.ini
 
-# IDE
+# ─── IDE ─────────────────────────────────────────────────────
 .idea/
 .vscode/
+*.iml
 *.swp
 *.swo
 *~
 
-# Claude Code local config
+# ─── Claude Code local config ────────────────────────────────
 .claude/
 
-# Environment files
+# ─── Environment ─────────────────────────────────────────────
 .env
 .env.*
+!.env.example
 
-# Logs
+# ─── Logs ────────────────────────────────────────────────────
 *.log
 logs/
+npm-debug.log*
+pnpm-debug.log*
+
+# ─── Node / TypeScript ───────────────────────────────────────
+node_modules/
+.pnpm-store/
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.turbo/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# ─── Go ──────────────────────────────────────────────────────
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# Test binaries and coverage
+*.test
+*.out
+coverage.txt
+# Dependency directories (vendoring)
+vendor/
+
+# ─── Java / Gradle ───────────────────────────────────────────
+*.class
+target/
+.gradle/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# ─── Docker / Local infra data ───────────────────────────────
+infra/dev/data/
+infra/prod/data/
+
+# ─── Protobuf generated code ─────────────────────────────────
+# Generated code committed by default; uncomment to ignore
+# **/gen/
+
+# ─── Misc ────────────────────────────────────────────────────
+*.bak
+*.tmp
+.tmp/

@@ -1,0 +1,7 @@
+# pnpm workspace declaration
+# Only TS/JS workspaces are listed here. Go services use go.mod per service.
+# Java services use Gradle (build.gradle.kts per service).
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "services/collab-server"
