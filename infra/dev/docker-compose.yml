@@ -197,7 +197,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ../prod/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../shared/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     networks:
       - pmnet
@@ -221,8 +221,8 @@ services:
       - "3001:3000"   # Use 3001 to leave 3000 for FE dev
     volumes:
       - grafana_data:/var/lib/grafana
-      - ../prod/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
-      - ../prod/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ../shared/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ../shared/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - pmnet
 
@@ -234,7 +234,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ../prod/monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ../shared/monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
       - loki_data:/loki
     networks:
       - pmnet
@@ -250,7 +250,7 @@ services:
       - "4317"        # OTLP gRPC (internal)
       - "4318"        # OTLP HTTP (internal)
     volumes:
-      - ../prod/monitoring/tempo-config.yml:/etc/tempo.yml:ro
+      - ../shared/monitoring/tempo-config.yml:/etc/tempo.yml:ro
       - tempo_data:/var/tempo
     networks:
       - pmnet
@@ -265,7 +265,7 @@ services:
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP
     volumes:
-      - ../prod/monitoring/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+      - ../shared/monitoring/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
     networks:
       - pmnet
     depends_on:
