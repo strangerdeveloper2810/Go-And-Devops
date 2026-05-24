@@ -1,0 +1,14 @@
+// Go workspace — local multi-module dev.
+//
+// Each Go service has its own go.mod. This workspace lets the local
+// build/IDE resolve `github.com/pm-platform/proto-go` directly to the
+// in-repo source without needing replace directives or publishing.
+//
+// CI / production builds use each service's go.mod with its own replace
+// directive, so go.work is dev-only convenience.
+go 1.25
+
+use (
+	./packages/proto-go
+	./services/api-gateway
+)
