@@ -1,0 +1,30 @@
+# Traefik dynamic config — dev
+#
+# Use this file for routes/middlewares not tied to a Docker container
+# (e.g., placeholder routes before services exist, or external upstreams).
+
+http:
+  middlewares:
+    # CORS middleware for FE dev (can be attached per-router)
+    cors-dev:
+      headers:
+        accessControlAllowOriginList:
+          - "http://app.localhost"
+          - "http://localhost:3000"
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowCredentials: true
+        accessControlMaxAge: 86400
+
+    # Strip /api/v1 prefix when forwarding (optional, services can accept either)
+    strip-api-prefix:
+      stripPrefix:
+        prefixes:
+          - /api/v1

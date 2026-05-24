@@ -1,0 +1,318 @@
+# PM Platform — Local Development Stack
+#
+# Usage:
+#   pnpm infra:dev:up                                    # Core only
+#   docker compose --profile observability up -d         # + Prometheus/Grafana/Loki/Tempo
+#   docker compose --profile dev-tools up -d             # + Adminer/Kafka UI/Redis Insight
+#   docker compose --profile observability --profile dev-tools up -d  # Everything
+#
+# All services join network `pmnet`. Inter-container calls use service name as DNS.
+
+name: pm-platform-dev
+
+networks:
+  pmnet:
+    name: pmnet
+    driver: bridge
+
+volumes:
+  pg_data:
+  redis_data:
+  kafka_data:
+  es_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+
+services:
+  # ─── Core ────────────────────────────────────────────────────
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: pm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-pmdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./postgres/init-scripts:/docker-entrypoint-initdb.d:ro
+    networks:
+      - pmnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-pmdb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: pm-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redis}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - pmnet
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: pm-kafka
+    restart: unless-stopped
+    environment:
+      # KRaft single-node combined mode (no Zookeeper)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+    ports:
+      - "9092:9092"   # Internal listener
+      - "9094:9094"   # External listener (from host)
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - pmnet
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server kafka:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    container_name: pm-schema-registry
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    ports:
+      - "8081:8081"
+    networks:
+      - pmnet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/subjects || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: pm-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - pmnet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    container_name: pm-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    volumes:
+      - minio_data:/data
+    networks:
+      - pmnet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  traefik:
+    image: traefik:v3.3
+    container_name: pm-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "8088:8080"   # Traefik dashboard (avoid 8080 conflict with schema-registry adjacent ports)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - pmnet
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: pm-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - pmnet
+
+  # ─── Observability (profile: observability) ──────────────────
+
+  prometheus:
+    image: prom/prometheus:v3.0.1
+    container_name: pm-prometheus
+    restart: unless-stopped
+    profiles: ["observability"]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../prod/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - pmnet
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: pm-grafana
+    restart: unless-stopped
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3001:3000"   # Use 3001 to leave 3000 for FE dev
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../prod/monitoring/grafana/datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+      - ../prod/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - pmnet
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: pm-loki
+    restart: unless-stopped
+    profiles: ["observability"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - ../prod/monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    networks:
+      - pmnet
+    command: -config.file=/etc/loki/local-config.yaml
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: pm-tempo
+    restart: unless-stopped
+    profiles: ["observability"]
+    ports:
+      - "3200:3200"   # Tempo HTTP
+      - "4317"        # OTLP gRPC (internal)
+      - "4318"        # OTLP HTTP (internal)
+    volumes:
+      - ../prod/monitoring/tempo-config.yml:/etc/tempo.yml:ro
+      - tempo_data:/var/tempo
+    networks:
+      - pmnet
+    command: -config.file=/etc/tempo.yml
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    container_name: pm-otel-collector
+    restart: unless-stopped
+    profiles: ["observability"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ../prod/monitoring/otel-collector.yml:/etc/otelcol-contrib/config.yaml:ro
+    networks:
+      - pmnet
+    depends_on:
+      - tempo
+      - loki
+      - prometheus
+
+  # ─── Dev tools (profile: dev-tools) ──────────────────────────
+
+  adminer:
+    image: adminer:latest
+    container_name: pm-adminer
+    restart: unless-stopped
+    profiles: ["dev-tools"]
+    ports:
+      - "8082:8080"
+    networks:
+      - pmnet
+    depends_on:
+      - postgres
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: pm-kafka-ui
+    restart: unless-stopped
+    profiles: ["dev-tools"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: pm-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://schema-registry:8081
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "8083:8080"
+    networks:
+      - pmnet
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: pm-redis-insight
+    restart: unless-stopped
+    profiles: ["dev-tools"]
+    ports:
+      - "8084:5540"
+    networks:
+      - pmnet
+    depends_on:
+      - redis

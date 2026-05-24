@@ -1,0 +1,57 @@
+# Prometheus scrape config
+#
+# Service discovery: dev uses static targets (containers join `pmnet`).
+# Prod will switch to Docker swarm or k3s service discovery.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: pm-platform
+    env: ${ENV:-dev}
+
+# rule_files:
+#   - alert-rules.yml          # Uncomment in prod once rules exist
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Placeholder for backend services. Each service will expose /metrics on its port.
+  # Targets are added as services are scaffolded in Phase 0+.
+  - job_name: backend-services
+    metrics_path: /metrics
+    static_configs:
+      - targets: []
+        # - api-gateway:8000
+        # - auth-service:8001
+        # - workspace-service:8002
+        # - issue-service:8003
+        # - page-service:8004
+        # - search-service:8005
+        # - notification-service:8006
+        # - file-service:8007
+        # - ai-service:8008
+        # - mcp-server:8009
+        # - realtime-service:8010
+        # - report-service:8011
+        # - audit-service:8012
+        # - collab-server:8013
+
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8080"]
+
+  - job_name: kafka
+    static_configs:
+      - targets: ["kafka:9092"]
+    metrics_path: /metrics
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["postgres-exporter:9187"]    # exporter sidecar (add when needed)
+
+  - job_name: redis
+    static_configs:
+      - targets: ["redis-exporter:9121"]       # exporter sidecar (add when needed)

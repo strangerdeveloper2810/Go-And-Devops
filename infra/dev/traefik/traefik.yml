@@ -1,0 +1,31 @@
+# Traefik static config — dev
+#
+# Entry points + providers. Service routing is defined via:
+#   - Docker labels on each service container (auto-discovered)
+#   - dynamic.yml file (for non-Docker routes if needed)
+
+api:
+  dashboard: true
+  insecure: true    # Dev only: dashboard accessible without auth
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false   # Containers must opt-in via `traefik.enable=true` label
+    network: pmnet
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+log:
+  level: INFO
+  format: common
+
+accessLog:
+  format: common
+
+# No TLS in dev. Production config in `../../prod/traefik/traefik.yml`.
