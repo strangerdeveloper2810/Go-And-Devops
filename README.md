@@ -69,7 +69,7 @@ Target MVP: 5-6 months. Real internal team adoption Q4 2026.
 ├── docs/
 │   ├── plans/                                          # Design docs and roadmap
 │   │   ├── 2026-05-24-pm-platform-design.md           # Full system design (9 sections)
-│   │   └── 2026-01-10-devops-learning-curriculum.md   # Original learning curriculum (reference)
+│   │   └── 2026-01-10-devops-learning-curriculum.md   # Backend + DevOps learning curriculum (PM Platform)
 │   └── theory/                                         # Conceptual learning notes
 │       ├── 01-clean-architecture.md
 │       ├── 02-go-syntax-basics.md

@@ -1,865 +1,510 @@
-# DevOps Learning Curriculum - Poor Man's Vercel
+# Backend + DevOps Learning Curriculum — PM Platform
 
-> Chương trình học DevOps + Go Backend thông qua xây dựng Platform-as-a-Service từ đầu
+> Chương trình học Go Backend + Microservice + DevOps thông qua xây **PM Platform** (Jira + Confluence + AI/MCP) từ đầu.
 >
-> **Target**: Backend Go / Fullstack React + Go (mid-senior)
+> **Target role**: Backend Go / Fullstack React + Go (mid-senior)
 > **Target companies**: Axon, VNG, ANZ
-> **Timeline**: 1.5 - 2 tháng
+> **CV submission**: June - August 2026
+> **Timeline**: 5-6 tháng (đồng bộ với MVP)
 
-*Created: 2026-01-10 | Updated: 2026-03-11*
+*Created: 2026-01-10 | Rewritten for PM Platform: 2026-05-25*
+
+> **Lịch sử**: Curriculum gốc cho project "Poor Man's Vercel" (Phase 1 + 2 đã hoàn thành tháng 2-3/2026). Project pivot sang PM Platform để vận hành thật nội bộ + scope phù hợp pv mid-senior microservice. Foundation Go + Docker giữ lại, các phase tiếp theo viết lại theo design doc mới ([`2026-05-24-pm-platform-design.md`](./2026-05-24-pm-platform-design.md)).
 
 ---
 
 ## Skills Map theo JD (Axon / VNG / ANZ)
 
-Tổng hợp từ JD thực tế của 3 công ty + market research:
+Cập nhật mapping skill ↔ phase. Tổng hợp từ JD thực tế + market 2026.
 
-| Skill | Axon | VNG | ANZ | Plan Phase |
-|-------|------|-----|-----|------------|
-| Go fundamentals, idioms | Required | Required | Required | 1 DONE |
-| REST API design | Required | Required | Required | 1 DONE |
-| Clean Architecture / SOLID | Required | Required | Required | 1 DONE |
-| PostgreSQL / SQL | Required | Required | Required | 1 DONE |
-| Docker | Required | Required | Plus | 2 DONE |
-| **Testing (unit, integration, mock)** | Required | Required | Required | **3.1** |
-| **Goroutine, concurrency patterns** | Required | Required | Required | **3.2** |
-| **Microservices architecture** | Required | Required | Required | **3** |
-| **Message Queue (Kafka/Redis)** | Required | Required | Plus | **3.2** |
-| **gRPC** | Plus | Required | Plus | **NEW 3.6** |
-| **DB optimization (indexing, N+1)** | Expected | Required | Expected | **NEW 3.1** |
-| Kubernetes | Required | Plus | Plus | 4 |
-| CI/CD | Required | Required | Plus | 3-5 |
-| **AWS/Cloud basics** | Required | Plus | Plus | **NEW 4.6** |
-| Monitoring (Prometheus/Grafana) | Plus | Plus | Plus | 5 |
-| **GraphQL** | Axon dùng | - | - | Optional |
-| **English communication** | Required | Required | Required | Self-study |
-| System design interview | Required | Required | Required | Throughout |
+| Skill | Axon | VNG | ANZ | PM Platform Phase | Status |
+|---|---|---|---|---|---|
+| Go fundamentals, idioms | Req | Req | Req | Foundation | ✅ DONE |
+| REST API design | Req | Req | Req | Phase 1 | ✅ DONE |
+| Clean Architecture / SOLID | Req | Req | Req | Foundation | ✅ DONE |
+| PostgreSQL / SQL | Req | Req | Req | Phase 1 | ✅ DONE |
+| Docker, multi-stage build | Req | Req | Plus | Foundation | ✅ DONE |
+| **JWT, OAuth** | Req | Req | Req | Phase 1 | ✅ DONE (old) → revisit |
+| **Testing (unit, integration, mock)** | Req | Req | Req | Phase 1+ | 🔵 In curriculum |
+| **Goroutine, concurrency patterns** | Req | Req | Req | Phase 0+ | 🔵 In curriculum |
+| **Microservice architecture** | Req | Req | Req | Phase 0 → 5 | 🔵 In curriculum |
+| **gRPC + Protobuf** | Plus | Req | Plus | Phase 0 | 🔵 In curriculum |
+| **Kafka (event-driven)** | Req | Req | Plus | Phase 0+ | 🔵 In curriculum |
+| **Schema Registry (Avro/Protobuf)** | Plus | Req | Plus | Phase 0+ | 🔵 In curriculum |
+| **Java + Spring Boot 3** | Plus | Plus | Req | Phase 1+ | 🔵 In curriculum |
+| **Elasticsearch** | Req | Req | Plus | Phase 3 | 🔵 In curriculum |
+| **Redis (cache, pub/sub, rate limit)** | Req | Req | Plus | Phase 0+ | 🔵 In curriculum |
+| **Object storage (MinIO/S3)** | Plus | Plus | Req | Phase 2 | 🔵 In curriculum |
+| **WebSocket realtime** | Plus | Plus | Plus | Phase 2 | 🔵 In curriculum |
+| **CRDT / collab edit (Yjs)** | - | - | - | Phase 2 | Bonus (rare in JD nhưng "wow" CV) |
+| **DB optimization (index, N+1, EXPLAIN)** | Exp | Req | Exp | Phase 1+ | 🔵 In curriculum |
+| **Outbox pattern, idempotency** | Req | Req | Req | Phase 0+ | 🔵 In curriculum |
+| **Saga / distributed transaction** | Plus | Plus | Plus | Phase 5 | 🔵 In curriculum |
+| **API Gateway (Traefik + custom Go)** | Req | Req | Plus | Phase 0 | 🔵 In curriculum |
+| **Kubernetes** | Req | Plus | Plus | Phase 6 stretch | Optional |
+| **CI/CD GitHub Actions** | Req | Req | Plus | Phase 0+ | 🔵 In curriculum |
+| **Observability (Prometheus, Grafana, Loki, Tempo)** | Plus | Plus | Plus | Phase 0+ | 🔵 In curriculum |
+| **OpenTelemetry distributed tracing** | Req | Req | Plus | Phase 0+ | 🔵 In curriculum |
+| **AI/LLM integration (Claude, function call)** | Plus | Plus | Plus | Phase 4 | 🔵 In curriculum |
+| **MCP server (Model Context Protocol)** | Plus | Plus | Plus | Phase 4 | 🔵 Unique CV point |
+| **RAG (vector store, embedding)** | Plus | Plus | Plus | Phase 4 | 🔵 In curriculum |
+| **AWS basics (EC2, RDS, S3, ECR)** | Req | Plus | Plus | Phase 6 stretch | Optional |
+| **System design interview** | Req | Req | Req | Throughout | 🔵 Practice section |
+| **English communication** | Req | Req | Req | Self-study | Self |
 
----
-
-## Phase 1: Go Fundamentals + REST API ---- DONE (2026-02-21 ~ 2026-02-22)
-
-> Mục tiêu: Xây REST API hoàn chỉnh với Clean Architecture, connect database thật
-
-### Module 1.1: Go Basics - DONE
-- [x] Variables, types, zero values (so sánh JS)
-- [x] Functions, multiple return values
-- [x] Structs & methods (receiver thay class)
-- [x] Interfaces (implicit implementation)
-- [x] Pointers (`&` lấy địa chỉ, `*` đi tới địa chỉ)
-- [x] Error handling (`if err != nil` thay try/catch)
-- [x] Slices, maps, loops (chỉ có `for`)
-- [x] Packages & modules (`go mod`, import)
-- **Quiz**: 7/10 - yếu pointer và map check key
-- **Theory**: [02-go-syntax-basics.md](../theory/02-go-syntax-basics.md)
-
-### Module 1.2: Go Web Development (Gin) - DONE
-- [x] Gin framework (`gin.New()`, `gin.Engine`)
-- [x] Middleware (`Logger()`, `Recovery()`)
-- [x] Route groups (`router.Group("/api/v1")`)
-- [x] Request handling (`c.Param()`, `c.ShouldBindJSON()`)
-- [x] Response format chuẩn (`SuccessResponse`, `ErrorResponse`)
-- [x] REST conventions (số nhiều `/projects`, HTTP status codes)
-- [x] Health check endpoints (`/health`, `/ready`)
-- **Lab**: REST API 7 endpoints hoàn chỉnh
-
-### Module 1.3: Database với Go - DONE
-- [x] `database/sql` package + connection pool
-- [x] PostgreSQL driver pgx (`_ "github.com/jackc/pgx/v5/stdlib"`)
-- [x] Side effect import (đăng ký driver)
-- [x] `db.Ping()` test connection thật
-- [x] 3 SQL patterns: `db.Query()`, `db.QueryRow()`, `db.Exec()`
-- [x] `rows.Scan()` map kết quả theo thứ tự SELECT
-- [x] PostgreSQL `$1, $2` placeholders
-- [x] `RETURNING` clause (lấy data sau INSERT/UPDATE)
-- [x] Soft delete pattern (`SET deleted_at = NOW()`)
-- [x] `RowsAffected()` check
-- [ ] ~~Migrations (golang-migrate)~~ - dùng init-scripts, migrate sau
-- [ ] ~~Query patterns (sqlc codegen)~~ - optional, sau này
-- **Lab**: Full CRUD 5 methods tested với curl
-
-### Module 1.4: Project Structure - DONE
-- [x] Clean Architecture (Handler → Service → Repository)
-- [x] Dependency Injection qua constructor
-- [x] Configuration management (godotenv + `.env`)
-- [x] DI wiring trong `main.go`
-- [x] Interface cho loose coupling
-- [x] Graceful shutdown (signal handling)
-- **Theory**: [01-clean-architecture.md](../theory/01-clean-architecture.md)
-- **Recap**: [04-project-recap-phase1.md](../theory/04-project-recap-phase1.md)
-
-### Files đã tạo (Phase 1):
-```
-services/api/
-├── cmd/api/main.go                   # Entry point + DI + graceful shutdown
-├── internal/
-│   ├── config/config.go              # Load .env
-│   ├── database/postgres.go          # DB connection (pgx)
-│   ├── handler/
-│   │   ├── health.go                 # GET /health, /ready
-│   │   ├── project.go                # CRUD handlers
-│   │   ├── response.go               # SuccessResponse / ErrorResponse
-│   │   └── routes.go                 # Route registration
-│   ├── model/project.go              # Project struct
-│   ├── service/project.go            # Interface + pass-through
-│   └── repository/repository.go      # SQL queries (5 methods)
-├── .env
-├── Makefile
-└── go.mod / go.sum
-
-deployments/docker/
-├── docker-compose.yml                # PostgreSQL + Redis + Adminer
-└── init-scripts/
-    └── 001_create_project.sql        # CREATE TABLE projects
-```
+Legend: ✅ done (từ old project) · 🔵 sẽ học qua PM Platform · — không cần.
 
 ---
 
-## Phase 2: Containerization ---- DONE (2026-02-25)
+## Completed Foundation (từ project cũ)
 
-> Mục tiêu: Đóng gói Go API thành Docker image, chạy full stack trong containers
+> 2 phase này đã hoàn thành (Feb-Mar 2026) với project "Poor Man's Vercel". Kiến thức + theory files vẫn nguyên giá trị reference cho PM Platform.
 
-### Module 2.1: Dockerfile cho Go API - DONE
-- [x] Viết `services/api/Dockerfile` (multi-stage build)
-  - [x] Stage 1 (`builder`): `golang:1.22-alpine`, copy source, `go build`
-  - [x] Stage 2 (`runner`): `alpine:3.19`, copy binary
-  - [x] Expose port 8080
-  - [x] `CMD ["./api"]`
-- [x] Hiểu tại sao multi-stage (image ~39MB thay vì 1GB)
-- [x] Build & test local: `docker build -t pmv-api:latest .`
-- **Lỗi mắc**: COPY destination `/` thay vì `./`, tên binary không khớp
-- **Theory**: [05-dockerfile-multi-stage.md](../theory/05-dockerfile-multi-stage.md)
+### ✅ Phase A — Go Fundamentals + REST API (2026-02-21 ~ 22)
 
-### Module 2.2: Docker Compose Full Stack - DONE
-- [x] Uncomment `api` service trong `docker-compose.yml`
-- [x] Config environment variables cho container
-- [x] Docker networking: containers gọi nhau bằng service name
-- [x] `depends_on` → API đợi PostgreSQL healthy
-- [x] Test: `docker compose up -d` → 4 services chạy OK
+- Go basics: variables, structs, methods, interface, pointer, error handling, slice, map, goroutine concept
+- Gin framework: routing, middleware, route group, request binding, response convention
+- `database/sql` + pgx driver, connection pool, `db.Query/QueryRow/Exec`, `rows.Scan`, `$1` placeholder, soft delete, `RowsAffected`
+- Clean Architecture (Handler → Service → Repository), constructor DI, graceful shutdown
+- Theory:
+  - [`02-go-syntax-basics.md`](../theory/02-go-syntax-basics.md)
+  - [`03-goroutine-channel.md`](../theory/03-goroutine-channel.md)
+  - [`01-clean-architecture.md`](../theory/01-clean-architecture.md) + [`01-clean-architecture-cheatsheet.md`](../theory/01-clean-architecture-cheatsheet.md)
+  - [`04-project-recap-phase1.md`](../theory/04-project-recap-phase1.md)
 
-### Module 2.3: Image Optimization & Registry - DONE (concepts)
-- [x] Layer caching: COPY `go.mod`+`go.sum` trước source → cache deps
-- [x] Image tagging: `docker tag` + `image:` trong docker-compose
-- [x] Registry concepts: Docker Hub, GHCR, ECR (chưa push thật)
-- [ ] ~~Push lên registry~~ - làm sau khi cần
-- [ ] ~~Security scan~~ - optional
+**Điểm yếu cần ôn**: pointer (value vs pointer khi truyền function), map check key (`v, ok := m[key]`).
 
-### Files đã tạo (Phase 2):
-```
-services/api/
-├── Dockerfile              # Multi-stage build (~39MB)
-└── .dockerignore
+### ✅ Phase B — Containerization (2026-02-25)
 
-deployments/docker/
-└── docker-compose.yml      # 4 services: API, PostgreSQL, Redis, Adminer
-```
+- Dockerfile multi-stage build (~25-39MB image)
+- Layer caching strategy (COPY go.mod trước → cache deps)
+- Docker Compose service networking (service name = DNS)
+- Image tagging, registry concept (Docker Hub, GHCR, ECR)
+- Theory: [`05-dockerfile-multi-stage.md`](../theory/05-dockerfile-multi-stage.md)
+
+### ✅ Phase C — JWT Authentication (2026-03-11)
+
+- bcrypt hash + compare (salt auto-extract)
+- JWT structure (Header.Payload.Signature), HS256 vs RS256
+- Gin middleware: extract Bearer token, parse claims, inject `user_id` vào context
+- Algorithm confusion attack (verify alg là HS256 trước khi check)
+- DI wiring: `userRepo → authSvc(secret) → authHandler → SetupRoutes`
+
+> 3 phase này sẽ **revisit + nâng cấp** trong PM Platform (clean version multi-service, không monolithic).
 
 ---
 
-## Phase 3: Build "Poor Man's Vercel"
+## PM Platform Curriculum — 7 Phase (5-6 tháng)
 
-> Mục tiêu: Platform tự động deploy app từ GitHub repo
-
-### System Architecture
-```
-┌─────────────────────────────────────────────────────────────┐
-│ User push code lên GitHub                                    │
-│         │                                                    │
-│         ▼                                                    │
-│ GitHub Webhook ──→ API Server ──→ Redis Queue                │
-│                      (Go)           │                        │
-│                        │            ▼                        │
-│                        │      Builder Worker                 │
-│                        │         (Go)                        │
-│                        │            │                        │
-│                        │     1. Git clone                    │
-│                        │     2. Detect framework             │
-│                        │     3. Build Docker image           │
-│                        │            │                        │
-│                        │            ▼                        │
-│                        │      Deployer Service               │
-│                        │         (Go)                        │
-│                        │            │                        │
-│                        │     1. Start container              │
-│                        │     2. Health check                 │
-│                        │     3. Register route               │
-│                        │            │                        │
-│                        │            ▼                        │
-│                        │      Traefik Proxy                  │
-│                        │            │                        │
-│                        ▼            ▼                        │
-│                    PostgreSQL   User's App                   │
-│                    (metadata)   (running container)          │
-│                                     │                        │
-│                                     ▼                        │
-│                              https://my-app.pmv.local        │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Module 3.1: API Server - Mở rộng
-
-**Lý thuyết cần hiểu:**
-- JWT (JSON Web Token) - stateless authentication
-- Middleware pattern trong Gin
-- Webhook = HTTP callback (GitHub gọi API khi có push event)
-
-**Tasks:**
-
-#### 3.1.1 JWT Authentication - DONE (2026-03-11)
-- [x] Hiểu JWT structure (Header.Payload.Signature)
-- [x] Install: `go get github.com/golang-jwt/jwt/v5`
-- [x] Tạo `internal/middleware/auth.go`
-  - [x] `AuthMiddleware()` - extract + verify JWT từ header
-  - [x] Inject user info vào `c.Set("user_id", ...)`
-  - [x] HMAC algorithm check (phòng algorithm confusion attack)
-- [x] Tạo `internal/handler/user.go` (auth handlers)
-  - [x] `POST /api/v1/auth/register` - tạo user + hash password
-  - [x] `POST /api/v1/auth/login` - verify password + return JWT
-- [x] Tạo `internal/model/user.go` - User struct
-- [x] Tạo `internal/repository/user.go` - User CRUD
-- [x] Tạo `internal/service/auth.go` - Auth business logic (bcrypt + JWT)
-- [x] SQL migration: `002_create_users.sql`
-- [x] Apply auth middleware cho project routes
-- [x] DI wiring: main.go → userRepo → authSvc → authHandler → SetupRoutes
-- [x] Test: register → login → get token → dùng token gọi protected API → ALL PASS
-- **Kiến thức**: bcrypt (one-way hash, salt tự extract), HS256 vs RS256, JWT secret leak nguy hiểm hơn hash leak
-
-#### 3.1.2 Deployment Management
-- [ ] Tạo `internal/model/deployment.go`
-  ```
-  Deployment: id, project_id, status, commit_sha, image_tag,
-              build_logs, deploy_url, created_at, updated_at
-  ```
-- [ ] Tạo `internal/repository/deployment.go`
-- [ ] Tạo `internal/service/deployment.go`
-- [ ] Tạo `internal/handler/deployment.go`
-- [ ] Routes: `GET/POST /api/v1/projects/:id/deployments`
-- [ ] SQL migration: `003_create_deployments.sql`
-
-#### 3.1.3 Webhook Endpoint
-- [ ] `POST /api/v1/webhooks/github` - nhận GitHub push event
-- [ ] Verify webhook signature (HMAC-SHA256)
-- [ ] Parse payload → extract repo URL, branch, commit SHA
-- [ ] Push build job vào Redis queue
-- [ ] Test: dùng curl simulate webhook
-
-#### 3.1.4 Testing (QUAN TRỌNG - mọi JD đều hỏi)
-- [ ] Hiểu Go testing (`_test.go` files, `go test`)
-- [ ] **Table-driven tests** (Go convention, interview hay hỏi)
-  ```go
-  tests := []struct {
-      name     string
-      input    string
-      expected int
-      wantErr  bool
-  }{...}
-  for _, tt := range tests { t.Run(tt.name, func(t *testing.T) {...}) }
-  ```
-- [ ] **Mock interface** dùng `gomock` hoặc manual mock
-- [ ] Unit test cho service layer (mock repository)
-- [ ] Unit test cho handler layer (mock service, `httptest`)
-- [ ] Integration test cho repository (test database thật)
-- [ ] **Test coverage**: `go test -cover ./...`
-- [ ] **Benchmark test**: `func BenchmarkXxx(b *testing.B)`
-- [ ] `make test` chạy all tests
-
-#### 3.1.5 Database Optimization (mid-senior cần biết)
-- [ ] **Indexing**: tạo index cho columns hay query (WHERE, JOIN)
-  ```sql
-  CREATE INDEX idx_projects_status ON projects(status);
-  CREATE INDEX idx_projects_name ON projects(name) WHERE deleted_at IS NULL;
-  ```
-- [ ] **EXPLAIN ANALYZE**: đọc query plan
-- [ ] **N+1 Problem**: query trong loop → dùng JOIN hoặc batch query
-- [ ] **Connection pool tuning**: MaxOpenConns, MaxIdleConns, ConnMaxLifetime
-- [ ] **Pagination**: LIMIT/OFFSET hoặc cursor-based pagination
-- [ ] Apply vào project: thêm pagination cho List endpoints
-
-### Module 3.2: Builder Worker (Go service mới)
-
-**Lý thuyết cần hiểu:**
-- Worker pattern (consume jobs từ queue)
-- Redis Pub/Sub hoặc List (LPUSH/BRPOP) làm queue
-- Docker SDK for Go (build image programmatically)
-- `os/exec` package (chạy commands từ Go)
-
-**Tasks:**
-
-#### 3.2.1 Project Setup
-- [ ] Tạo `services/builder/` (Go module riêng)
-  ```
-  services/builder/
-  ├── cmd/builder/main.go
-  ├── internal/
-  │   ├── config/config.go
-  │   ├── queue/redis.go        # Redis consumer
-  │   ├── git/clone.go          # Git operations
-  │   ├── detect/framework.go   # Framework detection
-  │   ├── build/docker.go       # Docker build
-  │   └── notify/status.go      # Update build status
-  ├── go.mod
-  └── Dockerfile
-  ```
-
-#### 3.2.2 Redis Queue Consumer
-- [ ] Install: `go get github.com/redis/go-redis/v9`
-- [ ] `BRPOP` blocking consumer (đợi job từ queue)
-- [ ] Job format: `{ project_id, repo_url, branch, commit_sha }`
-- [ ] Graceful shutdown (stop consuming khi nhận signal)
-
-#### 3.2.3 Git Clone
-- [ ] `git clone --branch <branch> --depth 1 <url> <dir>`
-- [ ] Dùng `os/exec.Command("git", "clone", ...)` hoặc go-git library
-- [ ] Clone vào temp directory
-- [ ] Cleanup sau khi build xong
-
-#### 3.2.4 Framework Detection
-- [ ] Check files trong repo:
-  - `package.json` → Node.js
-  - `go.mod` → Go
-  - `requirements.txt` / `Pipfile` → Python
-  - `Dockerfile` → user tự có Dockerfile
-- [ ] Return framework type + config
-
-#### 3.2.5 Dockerfile Generation & Build
-- [ ] Generate Dockerfile dựa trên framework:
-  - Node.js: `FROM node:20-alpine` + `npm install` + `npm start`
-  - Go: multi-stage build
-  - Python: `FROM python:3.12-slim` + `pip install` + `uvicorn`
-- [ ] Dùng Docker SDK hoặc `docker build` command
-- [ ] Tag image: `pmv-<project-id>:<commit-sha>`
-- [ ] Stream build logs → update status qua Redis
-
-#### 3.2.6 Status Updates
-- [ ] Update deployment status trong PostgreSQL (qua API hoặc direct DB)
-- [ ] Statuses: `queued` → `cloning` → `building` → `built` / `failed`
-- [ ] Save build logs
-
-### Module 3.3: Deployer Service (Go service mới)
-
-**Lý thuyết cần hiểu:**
-- Docker API (tạo/start/stop containers programmatically)
-- Health checks (HTTP endpoint check container healthy)
-- Rolling update (start new → health check → stop old)
-
-**Tasks:**
-
-#### 3.3.1 Project Setup
-- [ ] Tạo `services/deployer/` (Go module riêng)
-  ```
-  services/deployer/
-  ├── cmd/deployer/main.go
-  ├── internal/
-  │   ├── config/config.go
-  │   ├── container/manager.go   # Docker container lifecycle
-  │   ├── health/checker.go      # Health check
-  │   ├── proxy/traefik.go       # Register route với Traefik
-  │   └── queue/redis.go         # Listen deploy events
-  ├── go.mod
-  └── Dockerfile
-  ```
-
-#### 3.3.2 Container Manager
-- [ ] Install: `go get github.com/docker/docker/client`
-- [ ] `CreateContainer()` - tạo container từ built image
-- [ ] `StartContainer()` - start container
-- [ ] `StopContainer()` - graceful stop (SIGTERM → wait → SIGKILL)
-- [ ] `RemoveContainer()` - cleanup
-- [ ] Port management (assign dynamic port cho mỗi container)
-
-#### 3.3.3 Health Checker
-- [ ] HTTP health check endpoint (`/health` hoặc `/`)
-- [ ] Retry logic (check 5 lần, mỗi lần cách 3s)
-- [ ] Timeout per check (5s)
-- [ ] Return healthy/unhealthy
-
-#### 3.3.4 Rolling Update
-- [ ] Start new container (v2)
-- [ ] Health check v2
-- [ ] Nếu healthy → switch traffic → stop old container (v1)
-- [ ] Nếu unhealthy → rollback (giữ v1, remove v2)
-
-#### 3.3.5 Route Registration
-- [ ] Update Traefik config (dynamic) khi deploy thành công
-- [ ] Map: `my-app.pmv.local` → `container-ip:port`
-
-### Module 3.4: Traefik Proxy
-
-**Lý thuyết cần hiểu:**
-- Reverse proxy = nhận request → forward tới backend
-- Dynamic configuration (Traefik tự phát hiện containers)
-- TLS termination (HTTPS ở proxy, HTTP tới backend)
-
-**Tasks:**
-- [ ] Thêm Traefik vào `docker-compose.yml`
-- [ ] Config Traefik dashboard (`:8082`)
-- [ ] Docker provider (auto-detect containers via labels)
-- [ ] Dynamic routing qua Docker labels:
-  ```yaml
-  labels:
-    - "traefik.http.routers.myapp.rule=Host(`myapp.pmv.local`)"
-  ```
-- [ ] Wildcard DNS: `*.pmv.local` → `127.0.0.1`
-- [ ] (Optional) Auto SSL với Let's Encrypt
-
-### Module 3.5: Web UI (Next.js)
-
-**Lý thuyết cần hiểu:**
-- Next.js App Router (bạn đã biết React)
-- Server Components vs Client Components
-- Real-time updates (SSE hoặc WebSocket)
-
-**Tasks:**
-- [ ] Tạo `services/web/` (Next.js project)
-- [ ] Dashboard page - list projects
-- [ ] Project detail page - list deployments
-- [ ] Create project form
-- [ ] Deploy button
-- [ ] Real-time deployment logs (SSE/WebSocket)
-- [ ] Authentication (JWT flow)
-
-### Module 3.6: gRPC (inter-service communication) - NEW
-
-**Tại sao cần:** Axon dùng Protobuf, VNG yêu cầu gRPC, hầu hết microservices dùng gRPC thay REST cho internal communication.
-
-**Lý thuyết cần hiểu:**
-- gRPC vs REST: binary (Protobuf) vs text (JSON), nhanh hơn ~10x
-- Protocol Buffers (`.proto` files) = schema definition
-- Unary RPC, Server streaming, Client streaming, Bidirectional
-- gRPC dùng cho internal (service ↔ service), REST dùng cho external (client ↔ API)
-
-**Tasks:**
-- [ ] Install: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`
-- [ ] Install: `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest`
-- [ ] Viết `.proto` file cho Builder service:
-  ```protobuf
-  service BuilderService {
-    rpc TriggerBuild(BuildRequest) returns (BuildResponse);
-    rpc GetBuildStatus(StatusRequest) returns (stream BuildLog); // streaming
-  }
-  ```
-- [ ] Generate Go code từ proto: `protoc --go_out=. --go-grpc_out=.`
-- [ ] Implement gRPC server trong Builder service
-- [ ] Implement gRPC client trong API service
-- [ ] So sánh performance gRPC vs REST (cùng data)
-- [ ] **Lab**: API gọi Builder qua gRPC thay vì Redis queue
+Mapping 1:1 với design doc roadmap. Mỗi phase: **mục tiêu học** + **khái niệm mới** + **deliverable** + **interview pv hỏi gì**.
 
 ---
 
-### Module 3.7: Go Concurrency thực hành - NEW
+### Phase 0 — Foundation & Infrastructure (2-3 tuần)
 
-**Tại sao cần:** Mọi JD mid-senior đều hỏi goroutine/channel. Phase 1 chỉ học theory, cần thực hành.
+**Mục tiêu**: Monorepo + infrastructure + skeleton mọi service compile/run, observability baseline.
 
-**Tasks:**
-- [ ] **Worker Pool pattern**: N goroutines xử lý jobs từ channel
-  ```go
-  jobs := make(chan Job, 100)
-  for i := 0; i < numWorkers; i++ {
-      go worker(jobs)
-  }
-  ```
-- [ ] **Context cancellation**: `context.WithTimeout`, `context.WithCancel`
-- [ ] **sync.WaitGroup**: đợi nhiều goroutines xong
-- [ ] **sync.Mutex**: protect shared data (race condition)
-- [ ] **select statement**: listen multiple channels
-- [ ] **errgroup**: parallel tasks with error handling
-- [ ] **Race detector**: `go test -race ./...`
-- [ ] Apply vào project: Builder Worker dùng worker pool + context
+**Skills mới**:
+- Monorepo tool (Turborepo)
+- Protobuf + Buf CLI + gRPC code generation
+- Docker compose multi-service (Postgres, Redis, Kafka KRaft, Elasticsearch, MinIO, Traefik, Prometheus, Grafana, Loki, Tempo)
+- Schema-per-service Postgres (1 DB user / schema)
+- Kafka topic strategy (partition key, retention)
+- gRPC service skeleton (server reflection, health check protocol)
+- OpenTelemetry instrumentation (trace, metric, log)
+- GitHub Actions matrix build (Go + Java + Node parallel)
+- Pre-commit hook (lefthook + commitlint)
 
----
+**Theory cần đọc**:
+- gRPC vs REST: binary serialization, HTTP/2 streaming, bidirectional
+- Protobuf: schema evolution (backward compat), reserved fields, oneof
+- Kafka KRaft: bỏ Zookeeper, controller quorum
+- OpenTelemetry: W3C traceparent propagation
+- Traefik: docker provider, label-based config
 
-### Files sẽ tạo (Phase 3):
-```
-services/
-├── api/internal/
-│   ├── middleware/auth.go          # JWT middleware
-│   ├── handler/auth.go            # Login/Register
-│   ├── handler/deployment.go      # Deployment CRUD
-│   ├── model/user.go              # User struct
-│   ├── model/deployment.go        # Deployment struct
-│   ├── repository/user.go         # User queries
-│   ├── repository/deployment.go   # Deployment queries
-│   └── service/auth.go            # Auth logic
-│
-├── builder/                       # NEW SERVICE
-│   ├── cmd/builder/main.go
-│   ├── internal/
-│   │   ├── queue/redis.go
-│   │   ├── git/clone.go
-│   │   ├── detect/framework.go
-│   │   ├── build/docker.go
-│   │   └── notify/status.go
-│   ├── Dockerfile
-│   └── go.mod
-│
-├── deployer/                      # NEW SERVICE
-│   ├── cmd/deployer/main.go
-│   ├── internal/
-│   │   ├── container/manager.go
-│   │   ├── health/checker.go
-│   │   ├── proxy/traefik.go
-│   │   └── queue/redis.go
-│   ├── Dockerfile
-│   └── go.mod
-│
-└── web/                           # NEW SERVICE
-    ├── src/app/
-    │   ├── page.tsx               # Dashboard
-    │   ├── projects/[id]/page.tsx # Project detail
-    │   └── login/page.tsx         # Auth
-    ├── package.json
-    └── Dockerfile
+**Build**:
+- 14 service skeleton (mỗi service: main.go/Application.java/index.ts + Dockerfile + health endpoint)
+- `proto/pm/v1/common.proto` + 1 service proto (vd auth.proto)
+- `infra/dev/docker-compose.yml`: full stack 4GB RAM
+- 1 Grafana dashboard: services up/down + request rate
 
-deployments/docker/
-├── docker-compose.yml             # EDIT - thêm builder, deployer, traefik, web
-└── init-scripts/
-    ├── 001_create_project.sql
-    ├── 002_create_users.sql       # NEW
-    └── 003_create_deployments.sql # NEW
-```
+**Pv hay hỏi**:
+- "Tại sao gRPC giữa service, REST với FE?" → binary efficiency, type-safety, streaming
+- "Outbox pattern là gì?" → reliability dual-write
+- "Schema-per-service vs DB-per-service?" → tradeoff resource vs strict isolation
 
 ---
 
-## Phase 4: Kubernetes
+### Phase 1 — Core CRUD (4-5 tuần)
 
-> Mục tiêu: Deploy toàn bộ stack lên Kubernetes, setup GitOps
+**Mục tiêu**: Auth, Workspace, Issue, Page CRUD đầy đủ. Multi-user nhưng chưa real-time.
 
-### Module 4.1: K8s Concepts
+**Skills mới**:
+- **Java Spring Boot 3.x** (Java 21 nếu upgrade): Spring Web, Spring Data JPA, Hibernate, Flyway migration, Gradle Kotlin DSL
+- Spring Boot ↔ Go interop qua gRPC (proto chung)
+- Custom JPA repository, JPA criteria query (cho Jira custom field/workflow dynamic)
+- JSONB column trong Postgres + Spring Data
+- Go validation (`go-playground/validator`) + Spring Bean Validation (Jakarta)
+- sqlc code generation (type-safe Go query)
+- golang-migrate vs Flyway: file naming convention, transaction handling
+- Pagination: cursor-based (chuẩn modern), offset-limit (đơn giản)
+- Rate limit middleware (Redis sliding window, token bucket)
+- Google OAuth flow (authorization code + PKCE)
+- Email invite flow (signed token + expiry)
+- Role-based access control (RBAC) per project/space
 
-**Lý thuyết cần hiểu:**
-- K8s architecture (Control Plane: API Server, etcd, Scheduler, Controller Manager)
-- Pod = smallest unit (1+ containers)
-- Node = machine chạy pods
-- Declarative config (YAML) vs imperative commands
+**Theory cần đọc**:
+- JPA lazy vs eager fetching, N+1 problem
+- Hibernate first-level + second-level cache
+- Postgres index types: B-tree, GIN (JSONB, full-text), partial index
+- OAuth 2.0 PKCE flow
 
-**Tasks:**
-- [ ] Install `kubectl` + local cluster (`kind` hoặc `minikube`)
-- [ ] Chạy first pod: `kubectl run nginx --image=nginx`
-- [ ] `kubectl get pods`, `kubectl describe pod`, `kubectl logs`
-- [ ] Hiểu Pod lifecycle: Pending → Running → Succeeded/Failed
-- [ ] Viết Pod YAML file đầu tiên
+**Build**:
+- auth-service (Go): register, login, OAuth Google, invite, JWT issue/refresh
+- workspace-service (Go): workspace, project, space, role, member, permission check gRPC
+- issue-service (Java): project, sprint, issue CRUD, custom field, custom workflow
+- page-service (Go): page tree, page CRUD (markdown editor, no collab yet)
+- FE: login, invite accept, workspace settings, issue list/detail, page tree/viewer
+- 25-30% test coverage cho mỗi service
 
-### Module 4.2: Workloads
-
-**Lý thuyết cần hiểu:**
-- Deployment = manage ReplicaSet = manage Pods (self-healing)
-- Service = stable network endpoint cho pods
-  - ClusterIP (internal), NodePort (external), LoadBalancer
-- Ingress = HTTP routing (giống Traefik nhưng trong K8s)
-
-**Tasks:**
-- [ ] Viết `deployments/k8s/api-deployment.yaml`
-  ```yaml
-  apiVersion: apps/v1
-  kind: Deployment
-  metadata:
-    name: pmv-api
-  spec:
-    replicas: 2
-    selector: ...
-    template:
-      spec:
-        containers:
-        - name: api
-          image: pmv-api:latest
-          ports:
-          - containerPort: 8080
-  ```
-- [ ] Viết `api-service.yaml` (ClusterIP)
-- [ ] Viết `ingress.yaml` (HTTP routing)
-- [ ] Deploy PostgreSQL + Redis lên K8s
-- [ ] Test: `kubectl apply -f deployments/k8s/`
-- [ ] Scaling: `kubectl scale deployment pmv-api --replicas=3`
-
-### Module 4.3: Configuration
-
-**Lý thuyết cần hiểu:**
-- ConfigMap = non-sensitive config (PORT, ENV)
-- Secret = sensitive config (DATABASE_URL, JWT_SECRET) - base64 encoded
-- Volume mount hoặc environment variables
-
-**Tasks:**
-- [ ] Tạo ConfigMap cho API config
-- [ ] Tạo Secret cho database credentials
-- [ ] Mount vào Deployment as env vars
-- [ ] Namespace separation (dev/staging/prod)
-
-### Module 4.4: Storage
-
-**Lý thuyết cần hiểu:**
-- PersistentVolume (PV) = physical storage
-- PersistentVolumeClaim (PVC) = request storage
-- StatefulSet = ordered pod management (cho databases)
-
-**Tasks:**
-- [ ] Viết `postgres-statefulset.yaml`
-- [ ] Tạo PVC cho PostgreSQL data
-- [ ] Viết `redis-statefulset.yaml`
-- [ ] Test: delete pod → data vẫn còn
-
-### Module 4.5: Helm & GitOps
-
-**Lý thuyết cần hiểu:**
-- Helm = package manager cho K8s (template YAML)
-- Chart = collection of templates
-- ArgoCD = GitOps operator (watch git repo → auto sync K8s)
-
-**Tasks:**
-- [ ] Tạo Helm chart: `deployments/helm/pmv/`
-  ```
-  pmv/
-  ├── Chart.yaml
-  ├── values.yaml          # Default values
-  ├── values-dev.yaml      # Dev overrides
-  ├── values-prod.yaml     # Prod overrides
-  └── templates/
-      ├── deployment.yaml
-      ├── service.yaml
-      ├── ingress.yaml
-      ├── configmap.yaml
-      └── secret.yaml
-  ```
-- [ ] `helm install pmv ./deployments/helm/pmv`
-- [ ] Install ArgoCD trên cluster
-- [ ] Config ArgoCD watch git repo
-- [ ] Test: push code → CI build image → ArgoCD auto deploy
-
-### Module 4.6: Cloud Basics (AWS) - NEW
-
-**Tại sao cần:** Axon yêu cầu cloud experience, VNG/ANZ là plus. Ít nhất biết deploy lên cloud.
-
-**Lý thuyết cần hiểu:**
-- AWS core services: EC2 (VM), S3 (storage), RDS (managed DB), ECS/EKS (containers)
-- IAM (permissions), VPC (networking), Security Groups (firewall)
-- Infrastructure as Code (Terraform basics)
-
-**Tasks:**
-- [ ] Tạo AWS Free Tier account
-- [ ] Deploy Go API lên EC2 (manual)
-- [ ] Setup RDS PostgreSQL (managed database)
-- [ ] Push Docker image lên ECR (Elastic Container Registry)
-- [ ] (Optional) Deploy lên ECS Fargate (serverless containers)
-- [ ] (Optional) Terraform: viết infrastructure as code
-- [ ] **Lab**: Full stack chạy trên AWS (EC2 + RDS + Redis ElastiCache)
+**Pv hay hỏi**:
+- "JPA N+1 fix thế nào?" → `@EntityGraph`, JOIN FETCH, batch fetching
+- "Cursor pagination implement ra sao?" → encoded cursor (id+timestamp), index strategy
+- "JWT refresh token rotation?" → save hash trong DB, revoke on logout
+- "RBAC scale với nhiều role/permission?" → permission matrix JSONB, in-memory check, Redis cache
 
 ---
 
-### Files sẽ tạo (Phase 4):
-```
-deployments/
-├── k8s/                           # Raw K8s manifests
-│   ├── namespace.yaml
-│   ├── api-deployment.yaml
-│   ├── api-service.yaml
-│   ├── postgres-statefulset.yaml
-│   ├── redis-statefulset.yaml
-│   ├── configmap.yaml
-│   ├── secret.yaml
-│   └── ingress.yaml
-│
-└── helm/                          # Helm charts
-    └── pmv/
-        ├── Chart.yaml
-        ├── values.yaml
-        ├── values-dev.yaml
-        ├── values-prod.yaml
-        └── templates/
-            ├── deployment.yaml
-            ├── service.yaml
-            ├── ingress.yaml
-            ├── configmap.yaml
-            └── secret.yaml
-```
+### Phase 2 — Realtime + Collab Edit (3-4 tuần)
+
+**Mục tiêu**: Yjs collab edit page + WebSocket realtime board, comment, presence.
+
+**Skills mới**:
+- **CRDT (Conflict-free Replicated Data Type)** lý thuyết: Y.Doc, awareness, sync protocol v2
+- Hocuspocus server (Node TS): authentication hook, persistence hook, webhook
+- TipTap editor + Yjs collab extension + collaboration cursor
+- WebSocket scale pattern: Redis pub/sub fanout, sticky session vs broadcast all
+- Go WebSocket: ping/pong heartbeat, backpressure, graceful close
+- Optimistic UI update + reconciliation từ event
+- Presence protocol: ephemeral, last-write-wins
+- MinIO Go client: presigned URL upload (FE upload trực tiếp MinIO không qua API)
+- Kanban board drag-drop UX (dnd-kit)
+- TanStack Query `setQueryData` để mutate cache từ WS event
+
+**Theory cần đọc**:
+- CRDT vs OT (Operational Transform): convergence, commutativity
+- WebSocket vs SSE vs long-polling
+- Presigned URL: HMAC signature, expiry
+
+**Build**:
+- collab-server (Node TS, Hocuspocus): auth + Postgres persistence + Kafka producer
+- realtime-service (Go): WebSocket gateway, Redis pub/sub multiplex
+- file-service (Go): MinIO upload, presigned URL, virus scan stub
+- FE: TipTap collab editor, Kanban board real-time, presence indicator, file attach
+
+**Pv hay hỏi**:
+- "WebSocket scale horizontal thế nào?" → Redis pub/sub + sticky session optional
+- "Yjs CRDT vs OT khác gì?" → Yjs convergence guaranteed, OT cần central server
+- "Optimistic update fail thì sao?" → rollback từ server event, hiển thị conflict UI
+- "Presigned URL security?" → expiry ngắn, HMAC verify, content-type restriction
 
 ---
 
-## Phase 5: Observability
+### Phase 3 — Search + Notification (3 tuần)
 
-> Mục tiêu: Monitoring, logging, tracing production-ready
+**Mục tiêu**: Elasticsearch indexing + notification multi-channel (in-app, email, Zalo bot).
 
-### Module 5.1: Metrics (Prometheus + Grafana)
+**Skills mới**:
+- **Elasticsearch 8**: mapping, analyzer, multi-field, ngram for typo, scoring tuning
+- Spring Data Elasticsearch: repository pattern, ES Java Client
+- Kafka consumer pattern (Spring Kafka): @KafkaListener, retry topic, DLQ
+- Idempotent consumer (track `event_id`)
+- ES bulk indexing, refresh policy (async vs sync)
+- Search UX: highlight, facets/aggregations, autocomplete, fuzzy match
+- Spring `@Scheduled`: cron, fixedDelay, parallel execution
+- Email với Spring Mail: SMTP, HTML template (Thymeleaf), attachment
+- Zalo OA bot: webhook signature verify, message API
+- Notification preference: per-user, per-channel, per-event-type
+- In-app notification: WebSocket push + read state
 
-**Lý thuyết cần hiểu:**
-- Prometheus = pull-based metrics (scrape endpoints)
-- Metrics types: Counter, Gauge, Histogram, Summary
-- PromQL = query language cho Prometheus
-- Grafana = visualization dashboards
+**Theory cần đọc**:
+- Inverted index, term frequency-inverse document frequency (TF-IDF), BM25 ranking
+- ES shard + replica strategy
+- Email deliverability: SPF, DKIM, DMARC
+- Kafka consumer group rebalance: sticky vs cooperative
 
-**Tasks:**
-- [ ] Thêm Prometheus + Grafana vào docker-compose
-- [ ] Install `github.com/prometheus/client_golang`
-- [ ] Expose metrics endpoint: `GET /metrics`
-- [ ] Custom metrics trong Go API:
-  - `http_requests_total` (Counter) - tổng requests
-  - `http_request_duration_seconds` (Histogram) - latency
-  - `http_requests_in_flight` (Gauge) - concurrent requests
-  - `db_query_duration_seconds` (Histogram) - DB latency
-- [ ] Viết `prometheus.yml` config (scrape targets)
-- [ ] Tạo Grafana dashboard:
-  - Request rate (requests/sec)
-  - Error rate (% 5xx)
-  - Latency p50/p95/p99
-  - DB connection pool usage
-- [ ] PromQL queries cơ bản:
-  ```
-  rate(http_requests_total[5m])
-  histogram_quantile(0.95, http_request_duration_seconds)
-  ```
+**Build**:
+- search-service (Java): consume `issue.*`, `page.*` events, upsert ES, query API
+- notification-service (Java): consume mention/assign events, fan out in-app/email/zalo, preference engine
+- FE: global search bar with debounce + filter + facets, notification center
 
-### Module 5.2: Logging (Loki)
-
-**Lý thuyết cần hiểu:**
-- Structured logging (JSON) vs text logging
-- Log levels: DEBUG, INFO, WARN, ERROR
-- Loki = "Prometheus for logs" (index labels, not content)
-- LogQL = query language cho Loki
-
-**Tasks:**
-- [ ] Install structured logger (`zerolog` hoặc `zap`)
-- [ ] Replace `log.Printf` với structured logging
-  ```go
-  log.Info().
-    Str("method", c.Request.Method).
-    Str("path", c.Request.URL.Path).
-    Int("status", statusCode).
-    Dur("latency", duration).
-    Msg("request completed")
-  ```
-- [ ] Thêm Loki + Promtail vào docker-compose
-- [ ] Config Promtail scrape container logs
-- [ ] Tạo Grafana dashboard cho logs
-- [ ] LogQL queries:
-  ```
-  {app="pmv-api"} |= "error"
-  {app="pmv-api"} | json | status >= 500
-  ```
-
-### Module 5.3: Tracing (Jaeger/Tempo)
-
-**Lý thuyết cần hiểu:**
-- Distributed tracing = follow request across services
-- Span = 1 operation, Trace = collection of spans
-- OpenTelemetry (OTel) = standard API for telemetry
-- Context propagation (pass trace ID across HTTP calls)
-
-**Tasks:**
-- [ ] Install OpenTelemetry Go SDK
-- [ ] Setup tracer provider
-- [ ] Instrument HTTP handlers (auto tracing)
-- [ ] Instrument database queries (manual spans)
-- [ ] Propagate trace context giữa API → Builder → Deployer
-- [ ] Thêm Jaeger hoặc Tempo vào docker-compose
-- [ ] Visualize traces trong Grafana
-
-### Module 5.4: Alerting
-
-**Lý thuyết cần hiểu:**
-- Alert rules (when to fire)
-- Alert routing (who gets alerted)
-- Severity levels (critical, warning, info)
-- Runbooks (what to do when alert fires)
-
-**Tasks:**
-- [ ] Viết Prometheus alert rules:
-  ```yaml
-  - alert: HighErrorRate
-    expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
-    for: 5m
-    labels:
-      severity: critical
-  ```
-- [ ] Setup Alertmanager
-- [ ] Config alert routing (Slack/Discord/email)
-- [ ] Tạo runbooks cho common alerts
-- [ ] Test: trigger alert → verify notification
-
-### Files sẽ tạo (Phase 5):
-```
-deployments/docker/
-├── docker-compose.yml             # EDIT - thêm prometheus, grafana, loki, jaeger
-├── prometheus/
-│   ├── prometheus.yml             # Scrape config
-│   └── alert-rules.yml           # Alert rules
-├── grafana/
-│   ├── provisioning/
-│   │   ├── datasources.yml       # Prometheus, Loki, Jaeger
-│   │   └── dashboards.yml        # Auto-load dashboards
-│   └── dashboards/
-│       ├── api-overview.json      # Request rate, latency, errors
-│       └── infrastructure.json    # DB, Redis, containers
-├── loki/
-│   └── loki-config.yml
-└── promtail/
-    └── promtail-config.yml
-
-services/api/internal/
-├── middleware/
-│   ├── metrics.go                 # Prometheus metrics middleware
-│   ├── logging.go                 # Structured logging middleware
-│   └── tracing.go                 # OpenTelemetry middleware
-└── telemetry/
-    └── setup.go                   # Init tracer, meter providers
-```
+**Pv hay hỏi**:
+- "ES vs Postgres FTS khi nào nên dùng?" → > 1M doc, fuzzy match, facets → ES
+- "Kafka consumer group rebalance là gì?" → partition reassign khi consumer join/leave
+- "Email gửi không tới spam folder?" → SPF/DKIM, content rule, dedicated IP, warming
+- "Idempotency consumer thế nào?" → unique key trong DB hoặc Redis SET NX
 
 ---
 
-## CI/CD Pipeline (xuyên suốt Phase 3-5)
+### Phase 4 — AI + MCP (3-4 tuần)
+
+**Mục tiêu**: Claude + DeepSeek provider router, RAG trên Confluence pages, MCP server cho Claude Code/Cursor.
+
+**Skills mới**:
+- LLM API: Anthropic Claude (function calling, prompt caching, streaming), DeepSeek (OpenAI-compatible API)
+- Provider abstraction interface, fallback chain, cost budget per workspace
+- **pgvector**: vector column, ANN index (HNSW, IVFFlat), cosine similarity, `<=>` operator
+- Embedding pipeline: text chunking strategy (token-aware), overlap, dedupe
+- RAG: retrieve top-K + rerank + context budget + cite source
+- Function calling / tool use: schema design, parallel tool execution
+- Prompt engineering: system prompt, few-shot, chain-of-thought, structured output
+- **MCP (Model Context Protocol)**: server spec, transport (stdio, SSE), tool definition
+- `mark3labs/mcp-go` SDK
+- Token cost tracking, budget enforcement, hard/soft limit
+- Streaming response (SSE) qua Go channel → HTTP flush
+
+**Theory cần đọc**:
+- Transformer attention, embedding space, semantic similarity
+- RAG vs fine-tuning tradeoff
+- Vector index: HNSW (graph-based), IVFFlat (cluster-based), recall vs speed
+
+**Build**:
+- ai-service (Go): provider router, embedding pipeline (consume `page.events`), RAG endpoint, use case handlers (generate issue, summarize sprint, smart suggest, translate)
+- mcp-server (Go): tools (list/get/create/update issue + page, RAG query), stdio + SSE transport
+- FE: AI chat panel, RAG Q&A on docs, AI suggest UI (assignee, point)
+- Daily digest cron → Zalo + email
+
+**Pv hay hỏi**:
+- "RAG vs fine-tuning khi nào dùng cái nào?" → RAG: data thay đổi nhanh + dễ debug source; fine-tune: behavior cố định + chi phí inference rẻ
+- "Vector DB tự build (pgvector) vs dedicated (Qdrant/Pinecone)?" → pgvector đủ 1-10M vector, > 10M cần dedicated
+- "Token cost optimize?" → prompt caching, cheaper model first, batch, response cache
+- "MCP là gì?" → Anthropic spec cho LLM tool integration, stdio/SSE transport
+
+---
+
+### Phase 5 — Report + Audit + Polish (2-3 tuần)
+
+**Mục tiêu**: Burndown/velocity dashboard + audit log + production polish.
+
+**Skills mới**:
+- Materialized view + scheduled refresh
+- Event sourcing pattern (audit-service consume all events, append-only)
+- Time-series aggregation: burndown daily snapshot, rolling window
+- Spring Data aggregation queries, JPA `@Query` native vs JPQL
+- Partition table by month (Postgres declarative partitioning)
+- Chart library FE (Recharts hoặc Visx)
+- Performance: query optimization, EXPLAIN ANALYZE, slow query log
+- Load test cơ bản (k6 hoặc Apache Bench)
+- **Distributed tracing analysis**: identify hot path, bottleneck
+- Production checklist: graceful shutdown all services, connection pool tuning, health probe (liveness vs readiness)
+
+**Theory cần đọc**:
+- Event sourcing: state derived from events, replay, snapshot
+- CQRS (Command Query Responsibility Segregation): read model vs write model
+- Postgres partitioning: range, list, hash; constraint exclusion
+
+**Build**:
+- report-service (Java): burndown, velocity, user activity dashboards
+- audit-service (Java): consume all events, append-only log, admin query API + UI
+- Polish: error states, loading skeleton, empty states, mobile responsive
+- Performance: index audit, slow query log review, frontend bundle analyze
+
+**Pv hay hỏi**:
+- "Event sourcing pros/cons?" → audit log free + replay; cons: complex query, schema evolution khó
+- "Partition table khi nào cần?" → > 100M rows hoặc query luôn theo time range
+- "Liveness vs readiness probe?" → liveness: restart nếu chết; readiness: remove khỏi LB nếu không sẵn sàng
+
+---
+
+### Phase 6 — Migration + Cutover (2-3 tuần)
+
+**Mục tiêu**: Tool import full data từ Jira + Confluence, dry run, cutover production.
+
+**Skills mới**:
+- Jira REST API v3, JQL search, pagination, rate limit handling
+- Confluence REST API, Storage Format (XHTML) parsing
+- ETL pipeline: extract + transform + load với checkpoint
+- Idempotency at scale (UPSERT với external_id)
+- Data validation: count match, sample deep compare, attachment integrity check
+- HTML → TipTap JSON → Yjs Y.Doc conversion
+- Bulk Postgres insert (COPY vs INSERT, batch size tuning)
+- Cron schedule + state machine + retry logic
+- Cutover playbook: freeze, final sync, switch, rollback plan
+
+**Build**:
+- migration-tool (Go CLI): `jira-import`, `conf-import`, `verify` subcommands
+- Schema mapping spec doc
+- Dry run x2 cycles
+- Production cutover weekend
+
+**Pv hay hỏi**:
+- "Big Bang switch vs Strangler Fig?" → Big Bang đơn giản; Strangler cho data lớn + uptime critical
+- "Bulk insert optimize Postgres?" → COPY > batch INSERT > single INSERT; disable index trong khi load, rebuild sau
+- "Idempotent ETL implement thế nào?" → external_id unique, ON CONFLICT DO UPDATE, checkpoint state file
+
+---
+
+## Cross-Phase: CI/CD + Observability (xuyên suốt)
 
 ### GitHub Actions
 
 ```
-Push code → GitHub Actions:
-  1. Lint + Test
-  2. Build Docker image
-  3. Push image to registry
-  4. (Phase 4) ArgoCD auto-sync to K8s
+Push → CI:
+  ├─ Lint (per stack)
+  ├─ Test (per service, parallel)
+  ├─ Build Docker image
+  └─ Push GHCR (with semver + sha tag)
+
+Tag release → CD:
+  └─ Deploy VPS (SSH + docker compose pull + restart)
 ```
 
-**Tasks:**
-- [ ] `.github/workflows/ci.yml` - Lint, test, build
-- [ ] `.github/workflows/cd.yml` - Build image, push registry
-- [ ] (Phase 4) ArgoCD integration
+**Tasks dần làm theo phase**:
+- Phase 0: lint + test workflow per stack (Go, Java, Node, FE)
+- Phase 1: build + push image GHCR
+- Phase 5: deploy workflow (SSH + compose)
+- Phase 6: rollback workflow
+
+### Observability
+
+| Phase | Add |
+|---|---|
+| 0 | Prometheus scrape per service, basic Grafana dashboard |
+| 1 | Loki log aggregation, log correlation by trace_id |
+| 2 | Trace WebSocket lifecycle, Yjs sync latency metric |
+| 3 | Kafka consumer lag dashboard, ES query latency |
+| 4 | LLM token usage dashboard, cost per workspace |
+| 5 | Alert rules (5xx rate, consumer lag, disk full), Slack/Zalo webhook |
 
 ---
 
-## Interview Prep (song song với learning)
+## Interview Prep (song song learning)
+
+### Go Interview Questions
+
+Câu hỏi từ market 2026 cho mid-senior Go:
+
+- Goroutine vs OS thread (M:N scheduler, GMP model)
+- Channel buffered vs unbuffered (deadlock case)
+- `context` package: WithTimeout, WithCancel, propagation
+- Interface implicit implementation lợi ích (testability, dependency inversion)
+- Slice internal: backing array, `len` vs `cap`, append behavior, memory leak case
+- Map: not concurrent-safe, `sync.Map` use case, when prefer mutex
+- `defer`: LIFO order, return value capture, panic recovery
+- Generics (Go 1.18+): type parameter, constraint, when prefer interface
+- Memory model: happens-before, escape analysis, stack vs heap
+- Garbage collector: tricolor mark & sweep, GC tuning (GOGC, GOMEMLIMIT)
+- Race detector: `go test -race`, common race patterns
+- Error handling: errors.Is/As/Unwrap, sentinel vs typed, error wrapping
+- Generics vs `interface{}` / `any`
+- Embedding (struct + interface) vs inheritance
+- Pointer receiver vs value receiver: when to use which
+
+### Java/Spring Interview Questions
+
+- Spring Boot auto-configuration cơ chế
+- `@Transactional` propagation (REQUIRED, REQUIRES_NEW, NESTED), isolation level
+- JPA fetch type lazy vs eager, `@EntityGraph`
+- Bean scope (singleton, prototype, request), proxy mechanism
+- Spring Security filter chain, authentication vs authorization
+- Java virtual thread (Java 21 Project Loom) vs platform thread
+- `CompletableFuture` chaining, exception handling
+- `Optional` proper use, when not to use
+- Garbage collector G1, ZGC, Shenandoah tradeoff
+- Hibernate first-level vs second-level cache, query cache
 
 ### System Design (Axon/VNG hay hỏi)
-- [ ] Design URL shortener (basic)
-- [ ] Design rate limiter (middleware)
-- [ ] Design notification system (queue-based)
-- [ ] Design deployment pipeline (chính project này)
-- [ ] Practice: vẽ diagram, estimate scale, discuss trade-offs
 
-### Go Interview Questions (thường gặp)
-- [ ] Goroutine vs Thread
-- [ ] Channel buffered vs unbuffered
-- [ ] Context package - khi nào dùng, tại sao
-- [ ] Interface implicit implementation - lợi ích
-- [ ] Slice internal (backing array, len vs cap)
-- [ ] Map concurrency safety (sync.Map vs mutex)
-- [ ] Defer, panic, recover
-- [ ] Garbage collector trong Go (tricolor mark & sweep)
-- [ ] `init()` function execution order
+Practice với PM Platform context — phần nào trong project mình apply gì:
 
-### Coding Challenges (Go)
-- [ ] LeetCode medium bằng Go (arrays, strings, maps)
-- [ ] Implement concurrent-safe cache (goroutine + mutex)
-- [ ] Implement rate limiter (token bucket)
-- [ ] Implement worker pool pattern
+- Design Twitter feed (timeline generation)
+  - PM Platform analog: notification timeline, activity feed
+- Design URL shortener (hash, base62, custom domain)
+  - PM Platform: share link, presigned URL
+- Design rate limiter (token bucket, sliding window)
+  - PM Platform: api-gateway rate limit Redis
+- Design notification system (queue-based fan-out)
+  - PM Platform: notification-service Kafka consumer
+- Design distributed cache (consistent hashing, eviction)
+  - PM Platform: Redis cluster cho session/cache
+- Design chat system (WebSocket, presence, message ordering)
+  - PM Platform: realtime-service + Yjs collab
+- Design search system (inverted index, ranking)
+  - PM Platform: search-service Elasticsearch
+- Design deployment system / CI-CD pipeline
+  - PM Platform: GitHub Actions + GHCR + SSH deploy
+
+### Distributed System Patterns
+
+- Outbox pattern (transactional event publish)
+- Saga (orchestration vs choreography)
+- CQRS + event sourcing
+- Idempotent consumer (event_id tracking)
+- Dead Letter Queue
+- Circuit breaker (hystrix style)
+- Bulkhead isolation
+- Retry with exponential backoff + jitter
+- Distributed lock (Redis SET NX + EX, Zookeeper, etcd)
+- Leader election (Raft, Paxos overview)
+- Eventual consistency (read-your-writes, monotonic read)
+- CAP theorem applied to specific tools (Postgres = CP, Cassandra = AP)
+
+### Coding Challenges (Go practice)
+
+Practice trên LeetCode + custom challenges:
+
+- Concurrent-safe cache (LRU + mutex / sync.Map)
+- Rate limiter (token bucket, sliding window log)
+- Worker pool (channel + goroutine pool + context cancel)
+- Pub/sub in-memory (subscriber list + broadcast)
+- Connection pool (semaphore + sync.Pool)
+- Producer-consumer (bounded buffer)
+- Map-reduce (parallel split + merge)
+- Top-K elements (heap, quickselect)
+- Implement merge K sorted streams
+- Implement basic distributed lock (Redis SETNX)
+
+### English Communication
+
+Self-study, mọi pv senior đều dùng tiếng Anh:
+
+- Daily: read engineering blog (Netflix, Uber, Stripe, Cloudflare)
+- Practice: explain PM Platform architecture bằng English, record + nghe lại
+- Vocab: domain term (microservice, event-driven, consistency, throughput, latency)
 
 ---
 
-## Deliverables
+## Deliverables cuối curriculum
 
-Khi hoàn thành tất cả phases:
+Khi MVP hoàn thành (T+5-6 tháng):
 
 | Deliverable | Phase |
-|-------------|-------|
-| REST API hoàn chỉnh (Go + Gin + PostgreSQL) | 1 |
-| Dockerized application (multi-stage build) | 2 |
-| Auto-deploy platform (GitHub push → live URL) | 3 |
-| Kubernetes deployment + GitOps | 4 |
-| Full observability stack (metrics, logs, traces, alerts) | 5 |
-| CI/CD pipeline (GitHub Actions) | 3-5 |
-| Portfolio project cho interview | All |
+|---|---|
+| **PM Platform live** vận hành nội bộ team thật | All |
+| **14 microservices** (Go 8 + Java 5 + Node 1) trong monorepo Turborepo | Phase 0+ |
+| **Event-driven** Kafka với 8 topics, outbox pattern | Phase 0+ |
+| **Real-time collab edit** Yjs + Hocuspocus production-grade | Phase 2 |
+| **AI/MCP integration** Claude + DeepSeek + RAG + MCP server | Phase 4 |
+| **Full observability** Prometheus + Grafana + Loki + Tempo + alerts | Phase 0-5 |
+| **CI/CD pipeline** GitHub Actions: lint + test + build + deploy | Phase 0+ |
+| **Migration tool** import full Jira/Conf data với checkpoint | Phase 6 |
+| **Design doc** comprehensive 9-section system design | ✅ Done 2026-05-24 |
+| **Portfolio** repo public + write-up cho mỗi phase | All |
+
+CV bullet point ví dụ:
+- "Architected and built PM Platform: 14-service polyglot microservice (Go + Java + Node), event-driven via Kafka, with real-time collaborative editing (Yjs CRDT) and AI/MCP integration (Claude + DeepSeek). Operating internally for team of 10+ users."
+- "Designed schema-per-service Postgres + event sourcing audit log, with outbox pattern guaranteeing dual-write consistency."
+- "Built custom Go API gateway + Traefik edge with JWT verify, rate limit (Redis sliding window), and OpenTelemetry distributed tracing."
+- "Migrated production Jira + Confluence data (10K+ issues, 2K+ pages) to PM Platform with idempotent ETL tool and Big Bang cutover, zero data loss."
+
+---
+
+## References
+
+- Design doc: [`2026-05-24-pm-platform-design.md`](./2026-05-24-pm-platform-design.md)
+- Theory notes: `../theory/`
+- Old project (Poor Man's Vercel) — Git history `f3c1a49` → `d6c05f7` cho reference Go fundamentals
+
+---
+
+*Curriculum này là living document. Cập nhật khi học được điều mới hoặc khi target/timeline thay đổi.*
