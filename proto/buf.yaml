@@ -1,0 +1,22 @@
+version: v2
+modules:
+  - path: .
+    name: buf.build/pm-platform/pm
+
+# Lint rules (buf defaults are strict; tune here when needed)
+lint:
+  use:
+    - STANDARD
+  except:
+    # Service name + RPC name suffix conventions can be too strict for our
+    # case; revisit if we adopt Connect strictly.
+    - PACKAGE_VERSION_SUFFIX     # We use `pm.v1` which Buf wants — keep this strict
+  ignore_only:
+    PACKAGE_DIRECTORY_MATCH:
+      - vendor/
+
+breaking:
+  use:
+    - WIRE_JSON
+
+deps: []

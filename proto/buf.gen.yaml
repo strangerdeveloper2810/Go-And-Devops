@@ -1,0 +1,22 @@
+version: v2
+plugins:
+  # ─── Go ──────────────────────────────────────────────────────
+  # Generates *.pb.go (message types)
+  - remote: buf.build/protocolbuffers/go
+    out: ../packages/proto-go
+    opt:
+      - paths=source_relative
+  # Generates *_grpc.pb.go (gRPC server + client stubs)
+  - remote: buf.build/grpc/go
+    out: ../packages/proto-go
+    opt:
+      - paths=source_relative
+      - require_unimplemented_servers=false
+
+  # ─── Java + TS ─ added in later phases (commented for reference) ──
+  # - remote: buf.build/protocolbuffers/java
+  #   out: ../packages/proto-java/src/main/java
+  # - remote: buf.build/connectrpc/es
+  #   out: ../packages/proto-ts/src/gen
+  #   opt:
+  #     - target=ts

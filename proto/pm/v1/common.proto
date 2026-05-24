@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package pm.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pm-platform/proto-go/pm/v1;pmv1";
+option java_package = "com.pmplatform.proto.pm.v1";
+option java_multiple_files = true;
+option java_outer_classname = "CommonProto";
+
+// EventEnvelope wraps every domain event published to Kafka. The actual
+// payload is service-specific and encoded as bytes (typically another
+// proto message serialized with protobuf). Consumers decode `payload`
+// based on `event_type`.
+message EventEnvelope {
+  string event_id = 1;                              // UUID v7 for ordering
+  string event_type = 2;                            // 'issue.created', 'page.updated', ...
+  string event_version = 3;                         // 'v1', 'v2' (schema evolution)
+  int64  workspace_id = 4;                          // Partition key
+  int64  actor_id = 5;                              // User who triggered the event
+  google.protobuf.Timestamp occurred_at = 6;        // Domain time
+  string trace_id = 7;                              // W3C traceparent
+  bytes  payload = 8;                               // Service-specific message bytes
+  map<string, string> metadata = 9;                 // Free-form headers
+}
+
+// Pagination request applied to list endpoints. Cursor-based by default;
+// `page_size` is a soft hint, services may clamp to a max.
+message PageRequest {
+  string cursor = 1;     // Opaque, base64-encoded
+  int32  page_size = 2;  // Default 50, max 200
+}
+
+// Pagination response. `next_cursor` is empty when no more pages.
+message PageResponse {
+  string next_cursor = 1;
+  int32  total_count = 2;  // Optional; -1 if not computed
+}
+
+// Structured error returned via gRPC status details.
+message ErrorDetail {
+  string code = 1;                       // Domain code, e.g. 'AUTH/INVALID_CREDENTIALS'
+  string message = 2;                    // Human-readable
+  map<string, string> fields = 3;        // Field-level validation errors
+  string trace_id = 4;
+}
+
+// Generic resource reference used in cross-service responses.
+message ResourceRef {
+  string type = 1;       // 'issue', 'page', 'user', ...
+  string id = 2;
+  string display = 3;    // For UI rendering, optional
+}

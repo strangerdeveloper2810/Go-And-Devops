@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package pm.v1;
+
+import "google/protobuf/timestamp.proto";
+import "pm/v1/common.proto";
+
+option go_package = "github.com/pm-platform/proto-go/pm/v1;pmv1";
+option java_package = "com.pmplatform.proto.pm.v1";
+option java_multiple_files = true;
+option java_outer_classname = "AuthProto";
+
+// AuthService — internal gRPC API exposed by auth-service.
+//
+// Other services call this for token verification, user lookup, and
+// permission checks that depend on auth state.
+//
+// Public-facing register/login endpoints live in REST (FE → api-gateway →
+// auth-service) and are NOT modeled here.
+service AuthService {
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+message User {
+  int64  id = 1;
+  string email = 2;
+  string name = 3;
+  string avatar_url = 4;
+  UserStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE = 1;
+  USER_STATUS_INACTIVE = 2;
+  USER_STATUS_INVITED = 3;       // Account created from invite, password not yet set
+  USER_STATUS_MIGRATED = 4;      // From Jira migration, needs first login
+}
+
+message VerifyTokenRequest {
+  string access_token = 1;
+}
+
+message VerifyTokenResponse {
+  bool   valid = 1;
+  int64  user_id = 2;
+  string email = 3;
+  repeated string scopes = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message GetUserRequest {
+  int64 user_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message ListUsersRequest {
+  PageRequest page = 1;
+  repeated int64 ids = 2;        // Filter by specific IDs (e.g. for mention resolution)
+  string search = 3;             // Email / name LIKE
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  PageResponse page = 2;
+}
