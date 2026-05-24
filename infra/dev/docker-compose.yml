@@ -42,6 +42,7 @@ services:
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./postgres/init-scripts:/docker-entrypoint-initdb.d:ro
+      - ../shared/postgres/schemas:/shared-schemas:ro
     networks:
       - pmnet
     healthcheck:
