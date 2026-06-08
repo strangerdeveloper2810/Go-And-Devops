@@ -11,4 +11,5 @@ go 1.25
 use (
 	./packages/proto-go
 	./services/api-gateway
+	./services/auth
 )

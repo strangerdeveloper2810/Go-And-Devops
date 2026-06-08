@@ -1,0 +1,22 @@
+# Build artifacts
+bin/
+*.test
+*.out
+coverage.txt
+
+# Local env
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Avoid copying the Dockerfile + ignore file itself
+Dockerfile
+.dockerignore
+
+# Tests fixtures we don't need at runtime
+testdata/
