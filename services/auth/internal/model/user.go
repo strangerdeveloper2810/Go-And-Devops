@@ -5,7 +5,7 @@ import "time"
 type User struct {
 	ID           int64  `json:"id"`
 	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
+	PasswordHash string `json:"-"` // "-" = KHÔNG BAO GIỜ xuất ra JSON (chống leak hash ra client). Scan từ DB dùng thứ tự cột nên không ảnh hưởng.
 	Name         string `json:"name"`
 	AvatarURL    string `json:"avatar_url"`
 	Status       string `json:"status"`
