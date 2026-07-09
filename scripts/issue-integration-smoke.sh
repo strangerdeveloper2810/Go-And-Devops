@@ -140,5 +140,10 @@ req GET "/api/v1/issues/$ISS_KEY" 200 "" "$TOK" && :
 if req GET "/api/v1/projects/$PROJ_ID/issues" 200 "" "$TOK"; then
   echo "$REPLY" | jq -e --arg k "$ISS_KEY" '.issues[]?|select(.key==$k)' >/dev/null && ok "list chứa $ISS_KEY" || bad "list thiếu $ISS_KEY"; fi
 
+say "11) [global-unique] project key trùng ở workspace KHÁC → 409"
+req POST /api/v1/workspaces 201 "{\"name\":\"Issue WS 2\"}" "$TOK" >/dev/null
+WS2_ID="$(cat "$LOGDIR/r.json" | jq -r '.workspace.id')"
+req POST "/api/v1/workspaces/$WS2_ID/projects" 409 "{\"key\":\"$PKEY\",\"name\":\"Dup Key\"}" "$TOK" && :
+
 say "KẾT QUẢ"; printf 'PASS=%d FAIL=%d\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] && { echo "ALL GREEN ✅"; exit 0; } || { echo "CÓ FAIL ❌"; exit 1; }

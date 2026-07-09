@@ -258,6 +258,14 @@ func (s *workspaceService) CreateProject(ctx context.Context, userID, wsID int64
 	if _, err := s.assertMember(ctx, wsID, userID); err != nil {
 		return nil, err
 	}
+	// Project key phải DUY NHẤT TOÀN HỆ THỐNG (Jira-style): issue-service sinh issue key
+	// "<KEY>-<n>" và tra cứu /api/v1/issues/{key} toàn cục, nên 2 workspace cùng key sẽ
+	// gây issue key trùng → nhập nhằng cross-tenant. Chặn tại đây → 409.
+	if taken, err := s.projectRepo.ExistsByKey(ctx, key); err != nil {
+		return nil, fmt.Errorf("check project key: %w", err)
+	} else if taken {
+		return nil, ErrConflict
+	}
 	p := &model.Project{WorkspaceID: wsID, Key: key, Name: name}
 	if err := s.projectRepo.Create(ctx, p); err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
