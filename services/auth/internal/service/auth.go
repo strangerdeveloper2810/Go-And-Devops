@@ -77,8 +77,12 @@ func (s *authService) Register(ctx context.Context, email, password, name string
 
 	// Phát event user.created để workspace-service tạo default workspace.
 	// BEST-EFFORT: lỗi Kafka KHÔNG làm hỏng đăng ký (producer tự log).
+	// Dùng context.WithoutCancel: DB đã commit xong nên việc phát event KHÔNG
+	// được gắn với vòng đời request — nếu client ngắt kết nối, ctx bị hủy sẽ
+	// khiến Kafka write fail với context.Canceled và event bị mất im lặng
+	// (đây là trigger DUY NHẤT provision user ở workspace-service).
 	if s.publisher != nil {
-		s.publisher.PublishUserCreated(ctx, user)
+		s.publisher.PublishUserCreated(context.WithoutCancel(ctx), user)
 	}
 
 	return user, nil
