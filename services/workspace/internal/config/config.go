@@ -29,13 +29,16 @@ type DatabaseConfig struct {
 	URL string `mapstructure:"url"`
 }
 
-// KafkaConfig — kết nối Kafka để consume event user.created từ auth-service.
-// Brokers: danh sách địa chỉ broker; UserEventsTopic: topic chứa event user;
-// ConsumerGroup: group id để Kafka quản lý offset + phân phối partition.
+// KafkaConfig — kết nối Kafka. Vừa consume event user.created từ auth-service,
+// vừa produce domain event của workspace lên workspace.events.
+// Brokers: danh sách địa chỉ broker; UserEventsTopic: topic consume event user;
+// WorkspaceEventsTopic: topic produce event workspace (issue-service consume để
+// dựng projection); ConsumerGroup: group id để Kafka quản lý offset + phân phối partition.
 type KafkaConfig struct {
-	Brokers         []string `mapstructure:"brokers"`
-	UserEventsTopic string   `mapstructure:"user_events_topic"`
-	ConsumerGroup   string   `mapstructure:"consumer_group"`
+	Brokers              []string `mapstructure:"brokers"`
+	UserEventsTopic      string   `mapstructure:"user_events_topic"`
+	WorkspaceEventsTopic string   `mapstructure:"workspace_events_topic"`
+	ConsumerGroup        string   `mapstructure:"consumer_group"`
 }
 
 type OTelConfig struct {
@@ -67,6 +70,7 @@ func Load() (*Config, error) {
 	v.SetDefault("server.shutdown_timeout", "30s")
 	v.SetDefault("kafka.brokers", []string{"localhost:9094"})
 	v.SetDefault("kafka.user_events_topic", "auth.user.events")
+	v.SetDefault("kafka.workspace_events_topic", "workspace.events")
 	v.SetDefault("kafka.consumer_group", "workspace-service")
 	v.SetDefault("otel.enabled", false)
 	v.SetDefault("otel.service_name", "workspace-service")

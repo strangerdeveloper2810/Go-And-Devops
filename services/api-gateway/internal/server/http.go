@@ -80,6 +80,18 @@ func NewHTTPServer(
 		}
 	}
 
+	// Issue reverse proxy target (issue-service HTTP). Cùng pattern với workspace.
+	// Nil nếu addr trống/parse lỗi → route trả 502 thay vì crash.
+	var issueProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.IssueHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.issue_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			issueProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
 	// ─── Public routes — không cần JWT ───────────────────────────
 	v1 := r.Group("/api/v1")
 	{
@@ -147,6 +159,42 @@ func NewHTTPServer(
 		}
 		protected.Any("/workspaces", wsProxy)
 		protected.Any("/workspaces/*proxyPath", wsProxy)
+
+		// Issue proxy: forward /api/v1/issues[/*] và /api/v1/projects/* → issue HTTP.
+		// issue-service sở hữu CẢ issue-scoped ("/issues/{key}", "/issues/{key}/comments"…)
+		// LẪN project-scoped ("/projects/{id}/issues", "/…/sprints", "/…/boards") paths.
+		// /projects/* HIỆN CHƯA proxy tới workspace (workspace dùng /workspaces/*), nên
+		// định tuyến path project-scoped của issue sang issue-service là an toàn, không đụng.
+		//
+		// JWTAuth (nhóm protected) đã set X-User-ID / X-User-Email lên c.Request.Header →
+		// reverse proxy forward nguyên request nên issue-service nhận danh tính đã verify.
+		//
+		// Đăng ký CẢ "/issues" trần LẪN catch-all "/issues/*proxyPath" (cùng lý do
+		// RedirectTrailingSlash như workspace ở trên: nếu chỉ có catch-all thì gin sẽ
+		// 301 "/issues" → "/issues/" trước khi JWTAuth chạy).
+		//
+		// issueProxyTo dựng lại path đích từ prefix cố định + phần wildcard, giữ nguyên
+		// cách nối path (TrimPrefix "/" tránh "//"), tái dùng cho cả hai prefix.
+		issueProxyTo := func(prefix string) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				if issueProxy == nil {
+					c.JSON(http.StatusBadGateway, gin.H{
+						"error": gin.H{"code": "ISSUE_UNAVAILABLE", "message": "issue service not configured"},
+					})
+					return
+				}
+				sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+				target := prefix
+				if sub != "" {
+					target += "/" + sub
+				}
+				c.Request.URL.Path = target
+				issueProxy.ServeHTTP(c.Writer, c.Request)
+			}
+		}
+		protected.Any("/issues", issueProxyTo("/api/v1/issues"))
+		protected.Any("/issues/*proxyPath", issueProxyTo("/api/v1/issues"))
+		protected.Any("/projects/*proxyPath", issueProxyTo("/api/v1/projects"))
 	}
 
 	return &HTTPServer{

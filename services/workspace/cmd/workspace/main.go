@@ -96,7 +96,16 @@ func run() error {
 	roleRepo := repository.NewRoleRepository(db)
 	userRepo := repository.NewUserRepository(db)
 
-	wsSvc := service.NewWorkspaceService(db, wsRepo, memberRepo, projectRepo, roleRepo, userRepo)
+	// Kafka producer: phát domain event lên workspace.events (issue-service consume
+	// để dựng projection). BEST-EFFORT — inject vào service; lỗi publish chỉ log.
+	eventProducer := events.NewProducer(cfg.Kafka, logger)
+	defer func() {
+		if err := eventProducer.Close(); err != nil {
+			logger.Error("close kafka producer", slog.Any("err", err))
+		}
+	}()
+
+	wsSvc := service.NewWorkspaceService(db, wsRepo, memberRepo, projectRepo, roleRepo, userRepo, eventProducer)
 	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 
 	// ─── 7. Servers: HTTP (Gin) + gRPC ───────────────────────────
