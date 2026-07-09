@@ -70,3 +70,13 @@ message ListUsersResponse {
   repeated User users = 1;
   PageResponse page = 2;
 }
+
+// UserCreatedEvent — published by auth-service when a new user registers.
+// Consumed by workspace-service to provision the user projection and a
+// default workspace. Serialized into EventEnvelope.payload on Kafka.
+message UserCreatedEvent {
+  int64  user_id = 1;
+  string email = 2;
+  string name = 3;
+  string avatar_url = 4;
+}

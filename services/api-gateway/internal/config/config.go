@@ -47,9 +47,10 @@ type OTelConfig struct {
 // UpstreamConfig holds gRPC addresses of services this gateway proxies to.
 // In phase 0 most are unused; populated as services are added.
 type UpstreamConfig struct {
-	AuthAddr         string `mapstructure:"auth_addr"`      // gRPC addr (VerifyToken)
-	AuthHTTPAddr     string `mapstructure:"auth_http_addr"` // HTTP addr (reverse proxy register/login)
-	WorkspaceAddr    string `mapstructure:"workspace_addr"`
+	AuthAddr          string `mapstructure:"auth_addr"`           // gRPC addr (VerifyToken)
+	AuthHTTPAddr      string `mapstructure:"auth_http_addr"`      // HTTP addr (reverse proxy register/login)
+	WorkspaceAddr     string `mapstructure:"workspace_addr"`      // gRPC addr
+	WorkspaceHTTPAddr string `mapstructure:"workspace_http_addr"` // HTTP addr (reverse proxy /workspaces/*)
 	IssueAddr        string `mapstructure:"issue_addr"`
 	PageAddr         string `mapstructure:"page_addr"`
 	FileAddr         string `mapstructure:"file_addr"`
@@ -91,6 +92,7 @@ func Load() (*Config, error) {
 	// bind key nó đã biết — xem note tương tự ở auth service config).
 	v.SetDefault("upstream.auth_addr", "auth-service:9001")
 	v.SetDefault("upstream.auth_http_addr", "auth-service:8001")
+	v.SetDefault("upstream.workspace_http_addr", "workspace-service:8002")
 
 	// Optional file override (mounted ConfigMap or local dev override)
 	v.SetConfigName("config")

@@ -13,7 +13,6 @@ type Config struct {
 	LogLevel string         `mapstructure:"log_level"`
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
-	JWT      JWTConfig      `mapstructure:"jwt"`
 	Kafka    KafkaConfig    `mapstructure:"kafka"`
 	OTel     OTelConfig     `mapstructure:"otel"`
 }
@@ -30,18 +29,13 @@ type DatabaseConfig struct {
 	URL string `mapstructure:"url"`
 }
 
-type JWTConfig struct {
-	AccessSecret  string        `mapstructure:"access_secret"`
-	RefreshSecret string        `mapstructure:"refresh_secret"`
-	AccessTTL     time.Duration `mapstructure:"access_ttl"`
-	RefreshTTL    time.Duration `mapstructure:"refresh_ttl"`
-}
-
-// KafkaConfig — auth-service phát event user.created lên Kafka để các service
-// khác (workspace) consume. Brokers: danh sách broker; UserEventsTopic: topic đích.
+// KafkaConfig — kết nối Kafka để consume event user.created từ auth-service.
+// Brokers: danh sách địa chỉ broker; UserEventsTopic: topic chứa event user;
+// ConsumerGroup: group id để Kafka quản lý offset + phân phối partition.
 type KafkaConfig struct {
 	Brokers         []string `mapstructure:"brokers"`
 	UserEventsTopic string   `mapstructure:"user_events_topic"`
+	ConsumerGroup   string   `mapstructure:"consumer_group"`
 }
 
 type OTelConfig struct {
@@ -53,7 +47,7 @@ type OTelConfig struct {
 
 func Load() (*Config, error) {
 	v := viper.New()
-	v.SetEnvPrefix("PM_AUTH")
+	v.SetEnvPrefix("PM_WORKSPACE")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
@@ -62,31 +56,27 @@ func Load() (*Config, error) {
 	// default phải BindEnv thủ công — nếu không Unmarshal sẽ bỏ qua env var,
 	// dẫn tới validate fail dù env đã set đúng (bẫy kinh điển của viper).
 	_ = v.BindEnv("database.url")
-	_ = v.BindEnv("jwt.access_secret")
-	_ = v.BindEnv("jwt.refresh_secret")
-	_ = v.BindEnv("kafka.brokers")
 
 	// Defaults
 	v.SetDefault("env", "dev")
 	v.SetDefault("log_level", "info")
-	v.SetDefault("server.http_port", 8001)
-	v.SetDefault("server.grpc_port", 9001)
+	v.SetDefault("server.http_port", 8002)
+	v.SetDefault("server.grpc_port", 9002)
 	v.SetDefault("server.read_timeout", "15s")
 	v.SetDefault("server.write_timeout", "15s")
 	v.SetDefault("server.shutdown_timeout", "30s")
-	v.SetDefault("jwt.access_ttl", "15m")
-	v.SetDefault("jwt.refresh_ttl", "168h")
 	v.SetDefault("kafka.brokers", []string{"localhost:9094"})
 	v.SetDefault("kafka.user_events_topic", "auth.user.events")
+	v.SetDefault("kafka.consumer_group", "workspace-service")
 	v.SetDefault("otel.enabled", false)
-	v.SetDefault("otel.service_name", "auth-service")
+	v.SetDefault("otel.service_name", "workspace-service")
 	v.SetDefault("otel.otlp_endpoint", "otel-collector:4317")
 	v.SetDefault("otel.trace_sample_rate", 1.0)
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
-	v.AddConfigPath("/etc/pm-auth")
+	v.AddConfigPath("/etc/pm-workspace")
 
 	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -116,12 +106,6 @@ func (c *Config) validate() error {
 	}
 	if c.Database.URL == "" {
 		return fmt.Errorf("database.url is required")
-	}
-	if c.JWT.AccessSecret == "" {
-		return fmt.Errorf("jwt.access_secret is required")
-	}
-	if c.JWT.RefreshSecret == "" {
-		return fmt.Errorf("jwt.refresh_secret is required")
 	}
 	if c.OTel.Enabled && c.OTel.OTLPEndpoint == "" {
 		return fmt.Errorf("otel.enabled=true but otel.otlp_endpoint is empty")

@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package pm.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/pm-platform/proto-go/pm/v1;pmv1";
+option java_package = "com.pmplatform.proto.pm.v1";
+option java_multiple_files = true;
+option java_outer_classname = "WorkspaceProto";
+
+// WorkspaceService — internal gRPC API exposed by workspace-service.
+//
+// Other services call this to resolve workspace metadata, list the
+// workspaces a user belongs to, and check membership/role for authz.
+//
+// Public-facing workspace/project management endpoints live in REST
+// (FE → api-gateway → workspace-service) and are NOT modeled here.
+service WorkspaceService {
+  rpc GetWorkspace(GetWorkspaceRequest) returns (GetWorkspaceResponse);
+  rpc ListWorkspaces(ListWorkspacesRequest) returns (ListWorkspacesResponse);
+  rpc CheckMembership(CheckMembershipRequest) returns (CheckMembershipResponse);
+}
+
+message Workspace {
+  int64  id = 1;
+  string slug = 2;
+  string name = 3;
+  int64  owner_id = 4;
+  string plan = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message Project {
+  int64  id = 1;
+  int64  workspace_id = 2;
+  string key = 3;
+  string name = 4;
+  int64  lead_id = 5;
+}
+
+message Member {
+  int64  user_id = 1;
+  int64  workspace_id = 2;
+  string role = 3;
+  google.protobuf.Timestamp joined_at = 4;
+}
+
+message Role {
+  int64  id = 1;
+  string name = 2;
+  bool   is_system = 3;
+}
+
+message GetWorkspaceRequest {
+  int64 id = 1;
+}
+
+message GetWorkspaceResponse {
+  Workspace workspace = 1;
+}
+
+message ListWorkspacesRequest {
+  int64 user_id = 1;
+}
+
+message ListWorkspacesResponse {
+  repeated Workspace workspaces = 1;
+}
+
+message CheckMembershipRequest {
+  int64 workspace_id = 1;
+  int64 user_id = 2;
+}
+
+message CheckMembershipResponse {
+  bool   is_member = 1;
+  string role = 2;
+}

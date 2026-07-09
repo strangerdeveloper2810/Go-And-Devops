@@ -68,6 +68,18 @@ func NewHTTPServer(
 		}
 	}
 
+	// Workspace reverse proxy target (workspace-service HTTP). Cùng pattern với
+	// authProxy. Nil nếu addr trống/parse lỗi → route trả 502 thay vì crash.
+	var workspaceProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.WorkspaceHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.workspace_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			workspaceProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
 	// ─── Public routes — không cần JWT ───────────────────────────
 	v1 := r.Group("/api/v1")
 	{
@@ -97,6 +109,21 @@ func NewHTTPServer(
 		protected.GET("/me", func(c *gin.Context) {
 			userID, email, _ := middleware.RequireAuth(c)
 			c.JSON(http.StatusOK, gin.H{"user_id": userID, "email": email})
+		})
+
+		// Workspace proxy: forward /api/v1/workspaces/* → workspace-service HTTP.
+		// Nằm trong nhóm protected nên JWTAuth chạy trước, verify token và inject
+		// header X-User-ID / X-User-Email → workspace-service tin danh tính này.
+		protected.Any("/workspaces/*proxyPath", func(c *gin.Context) {
+			if workspaceProxy == nil {
+				c.JSON(http.StatusBadGateway, gin.H{
+					"error": gin.H{"code": "WORKSPACE_UNAVAILABLE", "message": "workspace service not configured"},
+				})
+				return
+			}
+			// gin wildcard *proxyPath đã kèm dấu "/" đầu → TrimPrefix tránh "//".
+			c.Request.URL.Path = "/api/v1/workspaces/" + strings.TrimPrefix(c.Param("proxyPath"), "/")
+			workspaceProxy.ServeHTTP(c.Writer, c.Request)
 		})
 	}
 

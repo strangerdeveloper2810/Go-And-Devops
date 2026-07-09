@@ -1,8 +1,9 @@
-// auth-service: xác thực người dùng cho PM Platform.
+// workspace-service: quản lý workspace (tenant), thành viên, project, role.
 //
 // Chịu trách nhiệm:
-//   - REST: /api/v1/auth/register, /login (cho FE gọi trực tiếp qua gateway)
-//   - gRPC: VerifyToken, GetUser, ListUsers (cho các service nội bộ gọi)
+//   - REST: /api/v1/workspaces/* (cho FE gọi qua gateway, nhận X-User-ID)
+//   - gRPC: GetWorkspace, ListWorkspaces, CheckMembership (cho service nội bộ)
+//   - Kafka: consume auth.user.events → tạo user projection + default workspace
 //   - Expose /health, /ready, /metrics
 //
 // main.go = "bảng mạch chính": tạo dependencies rồi cắm chúng vào nhau
@@ -21,14 +22,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pm-platform/auth/internal/config"
-	"github.com/pm-platform/auth/internal/database"
-	"github.com/pm-platform/auth/internal/events"
-	"github.com/pm-platform/auth/internal/handler"
-	"github.com/pm-platform/auth/internal/observability"
-	"github.com/pm-platform/auth/internal/repository"
-	"github.com/pm-platform/auth/internal/server"
-	"github.com/pm-platform/auth/internal/service"
+	"github.com/pm-platform/workspace/internal/config"
+	"github.com/pm-platform/workspace/internal/database"
+	"github.com/pm-platform/workspace/internal/events"
+	"github.com/pm-platform/workspace/internal/handler"
+	"github.com/pm-platform/workspace/internal/observability"
+	"github.com/pm-platform/workspace/internal/repository"
+	"github.com/pm-platform/workspace/internal/server"
+	"github.com/pm-platform/workspace/internal/service"
 )
 
 // main mỏng: chỉ gọi run(). Tách run() để dùng được `return err`
@@ -49,7 +50,7 @@ func run() error {
 
 	// ─── 2. Logger: slog JSON, set làm default toàn app ──────────
 	logger := observability.NewLogger(cfg.LogLevel, cfg.OTel.ServiceName)
-	logger.Info("starting auth service",
+	logger.Info("starting workspace service",
 		slog.String("env", cfg.Env),
 		slog.Int("http_port", cfg.Server.HTTPPort),
 		slog.Int("grpc_port", cfg.Server.GRPCPort),
@@ -86,34 +87,30 @@ func run() error {
 	logger.Info("database connected")
 
 	// ─── 6. Dependency Injection: repo → service → handler ───────
-	// Đây là "chuỗi cắm dây" của Clean Architecture:
-	//   repo cần db, service cần repo + jwt config, handler cần service.
-	// Mỗi lớp chỉ biết lớp ngay dưới nó qua interface → dễ test/thay thế.
-	// Kafka producer: phát event user.created lên auth.user.events.
-	// BEST-EFFORT — inject vào service; lỗi publish chỉ được log, không fail đăng ký.
-	userEventProducer := events.NewProducer(cfg.Kafka, logger)
-	defer func() {
-		if err := userEventProducer.Close(); err != nil {
-			logger.Error("close kafka producer", slog.Any("err", err))
-		}
-	}()
-
+	// "Chuỗi cắm dây" của Clean Architecture:
+	//   mỗi repo cần db; service gom tất cả repo + db (để chạy transaction);
+	//   handler cần service. Mỗi lớp chỉ biết lớp ngay dưới qua interface.
+	wsRepo := repository.NewWorkspaceRepository(db)
+	memberRepo := repository.NewMemberRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	roleRepo := repository.NewRoleRepository(db)
 	userRepo := repository.NewUserRepository(db)
-	authSvc := service.NewAuthService(userRepo, cfg.JWT, userEventProducer)
-	authHandler := handler.NewAuthHandler(authSvc)
+
+	wsSvc := service.NewWorkspaceService(db, wsRepo, memberRepo, projectRepo, roleRepo, userRepo)
+	wsHandler := handler.NewWorkspaceHandler(wsSvc)
 
 	// ─── 7. Servers: HTTP (Gin) + gRPC ───────────────────────────
-	// HTTP phục vụ FE; gRPC phục vụ service nội bộ. Cùng 1 authSvc.
-	httpSrv := server.NewHTTPServer(cfg, logger, metrics, authHandler)
-	grpcSrv, err := server.NewAuthGRPCServer(cfg, logger, authSvc)
+	// HTTP phục vụ FE (qua gateway); gRPC phục vụ service nội bộ. Cùng 1 wsSvc.
+	httpSrv := server.NewHTTPServer(cfg, logger, metrics, wsHandler)
+	grpcSrv, err := server.NewWorkspaceGRPCServer(cfg, logger, wsSvc)
 	if err != nil {
 		return fmt.Errorf("init grpc server: %w", err)
 	}
 
 	// ─── 8. Chạy 2 server song song trên 2 goroutine ─────────────
 	// errCh gom lỗi fatal từ bất kỳ server nào → main thoát ngay.
-	// Buffer 2 để goroutine không bị block nếu cả 2 cùng lỗi.
-	errCh := make(chan error, 2)
+	// Buffer 3 (2 server + Kafka consumer) để goroutine không bị block.
+	errCh := make(chan error, 3)
 	var wg sync.WaitGroup
 
 	wg.Add(2)
@@ -127,6 +124,20 @@ func run() error {
 		defer wg.Done()
 		if err := grpcSrv.Start(); err != nil {
 			errCh <- fmt.Errorf("grpc: %w", err)
+		}
+	}()
+
+	// ─── 8b. Kafka consumer: auth.user.events → tạo default workspace ──
+	// Chạy trên goroutine riêng. consumerCtx bị cancel lúc shutdown để
+	// vòng lặp ReadMessage thoát và Reader tự đóng.
+	consumer := events.NewConsumer(cfg.Kafka, wsSvc, logger)
+	consumerCtx, consumerCancel := context.WithCancel(context.Background())
+	defer consumerCancel()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := consumer.Run(consumerCtx); err != nil {
+			errCh <- fmt.Errorf("kafka consumer: %w", err)
 		}
 	}()
 
@@ -146,6 +157,9 @@ func run() error {
 	// rồi mới đóng hẳn (không cắt ngang giữa chừng client).
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Server.ShutdownTimeout)
 	defer cancel()
+
+	// Dừng Kafka consumer trước: cancel ctx → ReadMessage thoát → Reader đóng.
+	consumerCancel()
 
 	var shutdownErrs []error
 	if err := httpSrv.Shutdown(shutdownCtx); err != nil {

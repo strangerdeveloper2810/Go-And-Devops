@@ -481,6 +481,77 @@ func (x *ListUsersResponse) GetPage() *PageResponse {
 	return nil
 }
 
+// UserCreatedEvent — published by auth-service when a new user registers.
+// Consumed by workspace-service to provision the user projection and a
+// default workspace. Serialized into EventEnvelope.payload on Kafka.
+type UserCreatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        int64                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	AvatarUrl     string                 `protobuf:"bytes,4,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserCreatedEvent) Reset() {
+	*x = UserCreatedEvent{}
+	mi := &file_pm_v1_auth_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserCreatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserCreatedEvent) ProtoMessage() {}
+
+func (x *UserCreatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_pm_v1_auth_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserCreatedEvent.ProtoReflect.Descriptor instead.
+func (*UserCreatedEvent) Descriptor() ([]byte, []int) {
+	return file_pm_v1_auth_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *UserCreatedEvent) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *UserCreatedEvent) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *UserCreatedEvent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *UserCreatedEvent) GetAvatarUrl() string {
+	if x != nil {
+		return x.AvatarUrl
+	}
+	return ""
+}
+
 var File_pm_v1_auth_proto protoreflect.FileDescriptor
 
 const file_pm_v1_auth_proto_rawDesc = "" +
@@ -514,7 +585,13 @@ const file_pm_v1_auth_proto_rawDesc = "" +
 	"\x06search\x18\x03 \x01(\tR\x06search\"_\n" +
 	"\x11ListUsersResponse\x12!\n" +
 	"\x05users\x18\x01 \x03(\v2\v.pm.v1.UserR\x05users\x12'\n" +
-	"\x04page\x18\x02 \x01(\v2\x13.pm.v1.PageResponseR\x04page*\x8e\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x13.pm.v1.PageResponseR\x04page\"t\n" +
+	"\x10UserCreatedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x14\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"avatar_url\x18\x04 \x01(\tR\tavatarUrl*\x8e\x01\n" +
 	"\n" +
 	"UserStatus\x12\x1b\n" +
 	"\x17USER_STATUS_UNSPECIFIED\x10\x00\x12\x16\n" +
@@ -541,7 +618,7 @@ func file_pm_v1_auth_proto_rawDescGZIP() []byte {
 }
 
 var file_pm_v1_auth_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pm_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_pm_v1_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_pm_v1_auth_proto_goTypes = []any{
 	(UserStatus)(0),               // 0: pm.v1.UserStatus
 	(*User)(nil),                  // 1: pm.v1.User
@@ -551,18 +628,19 @@ var file_pm_v1_auth_proto_goTypes = []any{
 	(*GetUserResponse)(nil),       // 5: pm.v1.GetUserResponse
 	(*ListUsersRequest)(nil),      // 6: pm.v1.ListUsersRequest
 	(*ListUsersResponse)(nil),     // 7: pm.v1.ListUsersResponse
-	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
-	(*PageRequest)(nil),           // 9: pm.v1.PageRequest
-	(*PageResponse)(nil),          // 10: pm.v1.PageResponse
+	(*UserCreatedEvent)(nil),      // 8: pm.v1.UserCreatedEvent
+	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(*PageRequest)(nil),           // 10: pm.v1.PageRequest
+	(*PageResponse)(nil),          // 11: pm.v1.PageResponse
 }
 var file_pm_v1_auth_proto_depIdxs = []int32{
 	0,  // 0: pm.v1.User.status:type_name -> pm.v1.UserStatus
-	8,  // 1: pm.v1.User.created_at:type_name -> google.protobuf.Timestamp
-	8,  // 2: pm.v1.VerifyTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
+	9,  // 1: pm.v1.User.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 2: pm.v1.VerifyTokenResponse.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 3: pm.v1.GetUserResponse.user:type_name -> pm.v1.User
-	9,  // 4: pm.v1.ListUsersRequest.page:type_name -> pm.v1.PageRequest
+	10, // 4: pm.v1.ListUsersRequest.page:type_name -> pm.v1.PageRequest
 	1,  // 5: pm.v1.ListUsersResponse.users:type_name -> pm.v1.User
-	10, // 6: pm.v1.ListUsersResponse.page:type_name -> pm.v1.PageResponse
+	11, // 6: pm.v1.ListUsersResponse.page:type_name -> pm.v1.PageResponse
 	2,  // 7: pm.v1.AuthService.VerifyToken:input_type -> pm.v1.VerifyTokenRequest
 	4,  // 8: pm.v1.AuthService.GetUser:input_type -> pm.v1.GetUserRequest
 	6,  // 9: pm.v1.AuthService.ListUsers:input_type -> pm.v1.ListUsersRequest
@@ -588,7 +666,7 @@ func file_pm_v1_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pm_v1_auth_proto_rawDesc), len(file_pm_v1_auth_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

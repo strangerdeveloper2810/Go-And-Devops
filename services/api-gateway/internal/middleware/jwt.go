@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -64,9 +65,17 @@ func JWTAuth(authAddr string) gin.HandlerFunc {
 			return
 		}
 
-		// 3. Gắn user info vào context để handler downstream / upstream dùng.
+		// 3. Gắn user info vào context để handler downstream dùng.
 		c.Set("user_id", resp.UserId)
 		c.Set("user_email", resp.Email)
+
+		// 4. Inject forwarded identity headers để upstream service (được reverse
+		// proxy) biết "ai đang gọi". Gateway là ranh giới tin cậy: nó verify
+		// token rồi truyền danh tính qua header, service phía sau không cần
+		// verify JWT lại.
+		c.Request.Header.Set("X-User-ID", strconv.FormatInt(resp.UserId, 10))
+		c.Request.Header.Set("X-User-Email", resp.Email)
+
 		c.Next()
 	}
 }
