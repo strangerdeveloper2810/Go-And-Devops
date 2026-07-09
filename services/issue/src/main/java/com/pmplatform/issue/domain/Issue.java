@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.hibernate.annotations.CreationTimestamp;
@@ -26,6 +27,13 @@ public class Issue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    // Optimistic locking: 2 request cùng transition/update 1 issue → request thua nhận
+    // OptimisticLockException → 409 (map ở GlobalExceptionHandler), tránh lost-update +
+    // event Kafka mâu thuẫn. Hibernate tự tăng version; cột do migration V3 thêm.
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @Column(name = "project_id", nullable = false)
     private Long projectId;

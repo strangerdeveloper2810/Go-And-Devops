@@ -93,6 +93,15 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage());
     }
 
+    /** Ghi đè đồng thời (optimistic lock @Version) → 409 để client thử lại,
+     *  thay vì âm thầm mất update của một trong hai request. */
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiError> handleOptimisticLock(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        return body(HttpStatus.CONFLICT, "CONCURRENT_MODIFICATION",
+                "issue đã bị thay đổi bởi request khác, vui lòng tải lại và thử lại");
+    }
+
     // ── 404 / 405 / 406 / 415 — dispatch lỗi của Spring MVC ──────────────────
     // Phải khai báo tường minh: @ExceptionHandler(Exception.class) là super-type match
     // nên ExceptionHandlerExceptionResolver (chạy trước DefaultHandlerExceptionResolver)
