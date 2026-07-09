@@ -77,3 +77,40 @@ message CheckMembershipResponse {
   bool   is_member = 1;
   string role = 2;
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Domain events published by workspace-service on topic `workspace.events`.
+// Each is wrapped in common.EventEnvelope{ event_type, workspace_id, payload }
+// (payload = this message marshaled). Consumers (issue, page, notification,
+// audit) dispatch on EventEnvelope.event_type below.
+//   event_type = "workspace.created" → WorkspaceCreatedEvent
+//   event_type = "project.created"   → ProjectCreatedEvent
+//   event_type = "member.added"      → MemberAddedEvent
+//   event_type = "member.removed"    → MemberRemovedEvent
+// ─────────────────────────────────────────────────────────────────────────
+
+message WorkspaceCreatedEvent {
+  int64  workspace_id = 1;
+  string slug = 2;
+  string name = 3;
+  int64  owner_id = 4;
+}
+
+message ProjectCreatedEvent {
+  int64  project_id = 1;
+  int64  workspace_id = 2;
+  string key = 3;             // project key, e.g. "PMV" — issues become PMV-1, PMV-2...
+  string name = 4;
+  int64  lead_id = 5;         // 0 if unset
+}
+
+message MemberAddedEvent {
+  int64  workspace_id = 1;
+  int64  user_id = 2;
+  string role = 3;            // role name: "owner" | "member" | custom
+}
+
+message MemberRemovedEvent {
+  int64 workspace_id = 1;
+  int64 user_id = 2;
+}

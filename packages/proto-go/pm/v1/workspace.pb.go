@@ -590,6 +590,262 @@ func (x *CheckMembershipResponse) GetRole() string {
 	return ""
 }
 
+type WorkspaceCreatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	OwnerId       int64                  `protobuf:"varint,4,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WorkspaceCreatedEvent) Reset() {
+	*x = WorkspaceCreatedEvent{}
+	mi := &file_pm_v1_workspace_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WorkspaceCreatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WorkspaceCreatedEvent) ProtoMessage() {}
+
+func (x *WorkspaceCreatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_pm_v1_workspace_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WorkspaceCreatedEvent.ProtoReflect.Descriptor instead.
+func (*WorkspaceCreatedEvent) Descriptor() ([]byte, []int) {
+	return file_pm_v1_workspace_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *WorkspaceCreatedEvent) GetWorkspaceId() int64 {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return 0
+}
+
+func (x *WorkspaceCreatedEvent) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *WorkspaceCreatedEvent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *WorkspaceCreatedEvent) GetOwnerId() int64 {
+	if x != nil {
+		return x.OwnerId
+	}
+	return 0
+}
+
+type ProjectCreatedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProjectId     int64                  `protobuf:"varint,1,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	WorkspaceId   int64                  `protobuf:"varint,2,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	Key           string                 `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"` // project key, e.g. "PMV" — issues become PMV-1, PMV-2...
+	Name          string                 `protobuf:"bytes,4,opt,name=name,proto3" json:"name,omitempty"`
+	LeadId        int64                  `protobuf:"varint,5,opt,name=lead_id,json=leadId,proto3" json:"lead_id,omitempty"` // 0 if unset
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectCreatedEvent) Reset() {
+	*x = ProjectCreatedEvent{}
+	mi := &file_pm_v1_workspace_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectCreatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectCreatedEvent) ProtoMessage() {}
+
+func (x *ProjectCreatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_pm_v1_workspace_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectCreatedEvent.ProtoReflect.Descriptor instead.
+func (*ProjectCreatedEvent) Descriptor() ([]byte, []int) {
+	return file_pm_v1_workspace_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ProjectCreatedEvent) GetProjectId() int64 {
+	if x != nil {
+		return x.ProjectId
+	}
+	return 0
+}
+
+func (x *ProjectCreatedEvent) GetWorkspaceId() int64 {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return 0
+}
+
+func (x *ProjectCreatedEvent) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ProjectCreatedEvent) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ProjectCreatedEvent) GetLeadId() int64 {
+	if x != nil {
+		return x.LeadId
+	}
+	return 0
+}
+
+type MemberAddedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"` // role name: "owner" | "member" | custom
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemberAddedEvent) Reset() {
+	*x = MemberAddedEvent{}
+	mi := &file_pm_v1_workspace_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemberAddedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemberAddedEvent) ProtoMessage() {}
+
+func (x *MemberAddedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_pm_v1_workspace_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemberAddedEvent.ProtoReflect.Descriptor instead.
+func (*MemberAddedEvent) Descriptor() ([]byte, []int) {
+	return file_pm_v1_workspace_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *MemberAddedEvent) GetWorkspaceId() int64 {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return 0
+}
+
+func (x *MemberAddedEvent) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *MemberAddedEvent) GetRole() string {
+	if x != nil {
+		return x.Role
+	}
+	return ""
+}
+
+type MemberRemovedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceId   int64                  `protobuf:"varint,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MemberRemovedEvent) Reset() {
+	*x = MemberRemovedEvent{}
+	mi := &file_pm_v1_workspace_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MemberRemovedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MemberRemovedEvent) ProtoMessage() {}
+
+func (x *MemberRemovedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_pm_v1_workspace_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MemberRemovedEvent.ProtoReflect.Descriptor instead.
+func (*MemberRemovedEvent) Descriptor() ([]byte, []int) {
+	return file_pm_v1_workspace_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *MemberRemovedEvent) GetWorkspaceId() int64 {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return 0
+}
+
+func (x *MemberRemovedEvent) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
 var File_pm_v1_workspace_proto protoreflect.FileDescriptor
 
 const file_pm_v1_workspace_proto_rawDesc = "" +
@@ -633,7 +889,26 @@ const file_pm_v1_workspace_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"J\n" +
 	"\x17CheckMembershipResponse\x12\x1b\n" +
 	"\tis_member\x18\x01 \x01(\bR\bisMember\x12\x12\n" +
-	"\x04role\x18\x02 \x01(\tR\x04role2\xfc\x01\n" +
+	"\x04role\x18\x02 \x01(\tR\x04role\"}\n" +
+	"\x15WorkspaceCreatedEvent\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x19\n" +
+	"\bowner_id\x18\x04 \x01(\x03R\aownerId\"\x96\x01\n" +
+	"\x13ProjectCreatedEvent\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x01 \x01(\x03R\tprojectId\x12!\n" +
+	"\fworkspace_id\x18\x02 \x01(\x03R\vworkspaceId\x12\x10\n" +
+	"\x03key\x18\x03 \x01(\tR\x03key\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12\x17\n" +
+	"\alead_id\x18\x05 \x01(\x03R\x06leadId\"b\n" +
+	"\x10MemberAddedEvent\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId\x12\x12\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"P\n" +
+	"\x12MemberRemovedEvent\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\x03R\vworkspaceId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\x03R\x06userId2\xfc\x01\n" +
 	"\x10WorkspaceService\x12G\n" +
 	"\fGetWorkspace\x12\x1a.pm.v1.GetWorkspaceRequest\x1a\x1b.pm.v1.GetWorkspaceResponse\x12M\n" +
 	"\x0eListWorkspaces\x12\x1c.pm.v1.ListWorkspacesRequest\x1a\x1d.pm.v1.ListWorkspacesResponse\x12P\n" +
@@ -652,7 +927,7 @@ func file_pm_v1_workspace_proto_rawDescGZIP() []byte {
 	return file_pm_v1_workspace_proto_rawDescData
 }
 
-var file_pm_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_pm_v1_workspace_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_pm_v1_workspace_proto_goTypes = []any{
 	(*Workspace)(nil),               // 0: pm.v1.Workspace
 	(*Project)(nil),                 // 1: pm.v1.Project
@@ -664,11 +939,15 @@ var file_pm_v1_workspace_proto_goTypes = []any{
 	(*ListWorkspacesResponse)(nil),  // 7: pm.v1.ListWorkspacesResponse
 	(*CheckMembershipRequest)(nil),  // 8: pm.v1.CheckMembershipRequest
 	(*CheckMembershipResponse)(nil), // 9: pm.v1.CheckMembershipResponse
-	(*timestamppb.Timestamp)(nil),   // 10: google.protobuf.Timestamp
+	(*WorkspaceCreatedEvent)(nil),   // 10: pm.v1.WorkspaceCreatedEvent
+	(*ProjectCreatedEvent)(nil),     // 11: pm.v1.ProjectCreatedEvent
+	(*MemberAddedEvent)(nil),        // 12: pm.v1.MemberAddedEvent
+	(*MemberRemovedEvent)(nil),      // 13: pm.v1.MemberRemovedEvent
+	(*timestamppb.Timestamp)(nil),   // 14: google.protobuf.Timestamp
 }
 var file_pm_v1_workspace_proto_depIdxs = []int32{
-	10, // 0: pm.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
-	10, // 1: pm.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
+	14, // 0: pm.v1.Workspace.created_at:type_name -> google.protobuf.Timestamp
+	14, // 1: pm.v1.Member.joined_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: pm.v1.GetWorkspaceResponse.workspace:type_name -> pm.v1.Workspace
 	0,  // 3: pm.v1.ListWorkspacesResponse.workspaces:type_name -> pm.v1.Workspace
 	4,  // 4: pm.v1.WorkspaceService.GetWorkspace:input_type -> pm.v1.GetWorkspaceRequest
@@ -695,7 +974,7 @@ func file_pm_v1_workspace_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pm_v1_workspace_proto_rawDesc), len(file_pm_v1_workspace_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package pm.v1;
+
+import "google/protobuf/timestamp.proto";
+import "pm/v1/common.proto";
+
+option go_package = "github.com/pm-platform/proto-go/pm/v1;pmv1";
+option java_package = "com.pmplatform.proto.pm.v1";
+option java_multiple_files = true;
+option java_outer_classname = "IssueProto";
+
+// IssueService — internal gRPC API exposed by issue-service (Java/Spring).
+//
+// Other services (mcp-server, gateway gRPC path) call this to read issue and
+// sprint data. Public REST endpoints (FE → api-gateway → issue-service) are
+// NOT modeled here. search/report/notification get issue data by consuming
+// the `issue.events` Kafka topic, NOT via this API.
+service IssueService {
+  rpc GetIssue(GetIssueRequest) returns (GetIssueResponse);
+  rpc ListIssuesByProject(ListIssuesByProjectRequest) returns (ListIssuesByProjectResponse);
+  rpc GetSprint(GetSprintRequest) returns (GetSprintResponse);
+}
+
+message Issue {
+  int64  id = 1;
+  int64  project_id = 2;
+  string key = 3;                 // "PMV-42"
+  int64  type_id = 4;
+  string summary = 5;
+  string description = 6;
+  string status = 7;              // workflow state name
+  string priority = 8;            // "highest".."lowest"
+  int64  assignee_id = 9;         // 0 if unassigned
+  int64  reporter_id = 10;
+  int64  parent_id = 11;          // 0 if not a subtask
+  int64  sprint_id = 12;          // 0 if backlog
+  int32  story_points = 13;
+  repeated string labels = 14;
+  google.protobuf.Timestamp due_date = 15;
+  google.protobuf.Timestamp created_at = 16;
+  google.protobuf.Timestamp updated_at = 17;
+}
+
+message Sprint {
+  int64  id = 1;
+  int64  project_id = 2;
+  string name = 3;
+  string goal = 4;
+  string state = 5;               // "planned" | "active" | "completed"
+  google.protobuf.Timestamp start_date = 6;
+  google.protobuf.Timestamp end_date = 7;
+}
+
+message GetIssueRequest {
+  string key = 1;                 // "PMV-42"
+}
+message GetIssueResponse {
+  Issue issue = 1;
+}
+
+message ListIssuesByProjectRequest {
+  int64       project_id = 1;
+  string      status = 2;         // optional filter
+  int64       sprint_id = 3;      // optional filter (0 = ignore)
+  PageRequest page = 4;
+}
+message ListIssuesByProjectResponse {
+  repeated Issue issues = 1;
+  PageResponse   page = 2;
+}
+
+message GetSprintRequest {
+  int64 sprint_id = 1;
+}
+message GetSprintResponse {
+  Sprint sprint = 1;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Domain events published by issue-service on topic `issue.events`.
+// Wrapped in common.EventEnvelope{ event_type, workspace_id, payload }.
+//   event_type = "issue.created"      → IssueCreatedEvent
+//   event_type = "issue.updated"      → IssueUpdatedEvent
+//   event_type = "issue.transitioned" → IssueTransitionedEvent
+//   event_type = "comment.added"      → CommentAddedEvent
+//   event_type = "issue.linked"       → IssueLinkedEvent
+//   event_type = "sprint.started"     → SprintStartedEvent
+//   event_type = "sprint.completed"   → SprintCompletedEvent
+// ─────────────────────────────────────────────────────────────────────────
+
+message IssueCreatedEvent {
+  int64  issue_id = 1;
+  int64  project_id = 2;
+  string key = 3;
+  string summary = 4;
+  int64  reporter_id = 5;
+  int64  assignee_id = 6;
+}
+
+message IssueUpdatedEvent {
+  int64  issue_id = 1;
+  string key = 2;
+  repeated string changed_fields = 3;
+}
+
+message IssueTransitionedEvent {
+  int64  issue_id = 1;
+  string key = 2;
+  string from_status = 3;
+  string to_status = 4;
+}
+
+message CommentAddedEvent {
+  int64  comment_id = 1;
+  int64  issue_id = 2;
+  string issue_key = 3;
+  int64  author_id = 4;
+  repeated int64 mentions = 5;
+}
+
+message IssueLinkedEvent {
+  int64  from_issue_id = 1;
+  int64  to_issue_id = 2;
+  string link_type = 3;           // "blocks" | "relates" | "duplicates"
+}
+
+message SprintStartedEvent {
+  int64  sprint_id = 1;
+  int64  project_id = 2;
+  string name = 3;
+}
+
+message SprintCompletedEvent {
+  int64  sprint_id = 1;
+  int64  project_id = 2;
+  int32  completed_points = 3;
+  int32  incomplete_count = 4;
+}
