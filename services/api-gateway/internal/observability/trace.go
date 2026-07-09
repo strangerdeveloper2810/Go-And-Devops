@@ -16,11 +16,11 @@ import (
 // TraceConfig knobs for InitTracer. Mirrors fields in config.OTelConfig
 // without depending on it (so this package stays usable from anywhere).
 type TraceConfig struct {
-	Enabled        bool
-	ServiceName    string
-	OTLPEndpoint   string
-	SampleRate     float64
-	Env            string
+	Enabled      bool
+	ServiceName  string
+	OTLPEndpoint string
+	SampleRate   float64
+	Env          string
 }
 
 // InitTracer registers the global TracerProvider and propagator. Returns

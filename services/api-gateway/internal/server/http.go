@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -22,10 +25,10 @@ import (
 // HTTPServer wraps *http.Server with deps it owns, plus a typed shutdown
 // path that also flips the readiness flag.
 type HTTPServer struct {
-	srv     *http.Server
-	health  *handler.HealthChecker
-	logger  *slog.Logger
-	cfg     *config.Config
+	srv    *http.Server
+	health *handler.HealthChecker
+	logger *slog.Logger
+	cfg    *config.Config
 }
 
 func NewHTTPServer(
@@ -52,11 +55,48 @@ func NewHTTPServer(
 	r.GET("/ready", health.Ready)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// API v1 (placeholder; real routes added when upstream services come online).
+	// Auth reverse proxy target (auth-service HTTP). httputil.ReverseProxy =
+	// reverse proxy built-in của Go (giống http-proxy-middleware của Express).
+	// Nil nếu addr trống/parse lỗi → route auth trả 502 thay vì crash.
+	var authProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.AuthHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.auth_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			authProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
+	// ─── Public routes — không cần JWT ───────────────────────────
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/ping", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"pong": true})
+		})
+
+		// Auth proxy: forward /api/v1/auth/* → auth-service HTTP.
+		// register/login là public (chưa có token) nên nằm ở nhóm public.
+		v1.Any("/auth/*proxyPath", func(c *gin.Context) {
+			if authProxy == nil {
+				c.JSON(http.StatusBadGateway, gin.H{
+					"error": gin.H{"code": "AUTH_UNAVAILABLE", "message": "auth service not configured"},
+				})
+				return
+			}
+			// gin wildcard *proxyPath đã kèm dấu "/" đầu → TrimPrefix tránh "//".
+			c.Request.URL.Path = "/api/v1/auth/" + strings.TrimPrefix(c.Param("proxyPath"), "/")
+			authProxy.ServeHTTP(c.Writer, c.Request)
+		})
+	}
+
+	// ─── Protected routes — cần JWT hợp lệ (verify qua auth gRPC) ─
+	protected := r.Group("/api/v1")
+	protected.Use(middleware.JWTAuth(cfg.Upstream.AuthAddr))
+	{
+		protected.GET("/me", func(c *gin.Context) {
+			userID, email, _ := middleware.RequireAuth(c)
+			c.JSON(http.StatusOK, gin.H{"user_id": userID, "email": email})
 		})
 	}
 

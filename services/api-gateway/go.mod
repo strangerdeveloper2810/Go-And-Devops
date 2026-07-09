@@ -5,6 +5,7 @@ go 1.25
 require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
+	github.com/pm-platform/proto-go v0.0.0-00010101000000-000000000000
 	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/viper v1.21.0
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.57.0

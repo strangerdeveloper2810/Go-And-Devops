@@ -38,16 +38,17 @@ type JWTConfig struct {
 }
 
 type OTelConfig struct {
-	Enabled        bool    `mapstructure:"enabled"`
-	ServiceName    string  `mapstructure:"service_name"`
-	OTLPEndpoint   string  `mapstructure:"otlp_endpoint"`
+	Enabled         bool    `mapstructure:"enabled"`
+	ServiceName     string  `mapstructure:"service_name"`
+	OTLPEndpoint    string  `mapstructure:"otlp_endpoint"`
 	TraceSampleRate float64 `mapstructure:"trace_sample_rate"`
 }
 
 // UpstreamConfig holds gRPC addresses of services this gateway proxies to.
 // In phase 0 most are unused; populated as services are added.
 type UpstreamConfig struct {
-	AuthAddr         string `mapstructure:"auth_addr"`
+	AuthAddr         string `mapstructure:"auth_addr"`      // gRPC addr (VerifyToken)
+	AuthHTTPAddr     string `mapstructure:"auth_http_addr"` // HTTP addr (reverse proxy register/login)
 	WorkspaceAddr    string `mapstructure:"workspace_addr"`
 	IssueAddr        string `mapstructure:"issue_addr"`
 	PageAddr         string `mapstructure:"page_addr"`
@@ -84,6 +85,12 @@ func Load() (*Config, error) {
 	v.SetDefault("otel.service_name", "api-gateway")
 	v.SetDefault("otel.otlp_endpoint", "otel-collector:4317")
 	v.SetDefault("otel.trace_sample_rate", 1.0)
+
+	// Upstream auth addresses. SetDefault vừa cho giá trị mặc định (docker
+	// service name), vừa để AutomaticEnv bind được env override (viper chỉ
+	// bind key nó đã biết — xem note tương tự ở auth service config).
+	v.SetDefault("upstream.auth_addr", "auth-service:9001")
+	v.SetDefault("upstream.auth_http_addr", "auth-service:8001")
 
 	// Optional file override (mounted ConfigMap or local dev override)
 	v.SetConfigName("config")

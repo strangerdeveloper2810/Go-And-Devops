@@ -9,8 +9,8 @@ import (
 // service defines its own set; the names follow OpenMetrics conventions
 // (snake_case, unit suffix, _total for counters).
 type Metrics struct {
-	HTTPRequestsTotal   *prometheus.CounterVec
-	HTTPRequestDuration *prometheus.HistogramVec
+	HTTPRequestsTotal    *prometheus.CounterVec
+	HTTPRequestDuration  *prometheus.HistogramVec
 	HTTPRequestsInFlight prometheus.Gauge
 }
 
