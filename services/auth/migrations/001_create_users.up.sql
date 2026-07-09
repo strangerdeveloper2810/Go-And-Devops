@@ -1,5 +1,6 @@
 -- Tạo bảng users trong schema auth.
 -- Migration chạy theo thứ tự: 001, 002, 003... giống Knex/Prisma migrations.
+CREATE SCHEMA IF NOT EXISTS auth;
 
 CREATE TABLE IF NOT EXISTS auth.users (
     id            BIGSERIAL    PRIMARY KEY,            -- BIGSERIAL = auto-increment 64-bit
