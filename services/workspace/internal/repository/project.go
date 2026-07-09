@@ -12,6 +12,10 @@ import (
 type ProjectRepository interface {
 	Create(ctx context.Context, project *model.Project) error
 	ListByWorkspace(ctx context.Context, workspaceID int64) ([]*model.Project, error)
+	// ExistsByKey: key đã bị project CÒN SỐNG nào (TOÀN HỆ THỐNG) chiếm chưa.
+	// Project key phải global-unique kiểu Jira → issue key "<KEY>-<n>" mới global-unique,
+	// để /api/v1/issues/{key} của issue-service không nhập nhằng cross-workspace.
+	ExistsByKey(ctx context.Context, key string) (bool, error)
 }
 
 type postgreProjectRepository struct {
@@ -35,6 +39,19 @@ func (r *postgreProjectRepository) Create(ctx context.Context, project *model.Pr
 		return fmt.Errorf("insert project: %w", err)
 	}
 	return nil
+}
+
+// ExistsByKey: có project CÒN SỐNG nào (bất kỳ workspace) dùng key này chưa.
+func (r *postgreProjectRepository) ExistsByKey(ctx context.Context, key string) (bool, error) {
+	var exists bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM workspace.projects WHERE key = $1 AND deleted_at IS NULL)`,
+		key,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check project key exists: %w", err)
+	}
+	return exists, nil
 }
 
 func (r *postgreProjectRepository) ListByWorkspace(ctx context.Context, workspaceID int64) ([]*model.Project, error) {

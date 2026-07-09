@@ -1,0 +1,62 @@
+# issue-service config. Env vars use the PM_ISSUE_* prefix (Spring relaxed binding:
+# PM_ISSUE_DATABASE_URL → maps below via ${...}). Ports 8003 (HTTP) / 9003 (gRPC, later).
+server:
+  port: ${PM_ISSUE_SERVER_HTTP_PORT:8003}
+
+spring:
+  application:
+    name: issue-service
+  datasource:
+    url: ${PM_ISSUE_DATABASE_URL:jdbc:postgresql://localhost:5432/pmdb?currentSchema=issue}
+    username: ${PM_ISSUE_DATABASE_USER:postgres}
+    password: ${PM_ISSUE_DATABASE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      # Flyway sở hữu schema. KHÔNG dùng 'validate': Hibernate 6.5 validate quá chặt với
+      # cột Postgres array (bigint[]/text[]) + JSONB map qua hypersistence → báo sai kiểu
+      # (vd mentions bigint[] '_int8 ARRAY' vs 'OTHER'). 'none' = tin migration là chuẩn.
+      ddl-auto: none
+    properties:
+      hibernate:
+        default_schema: issue
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  flyway:
+    enabled: true
+    schemas: [issue]
+    default-schema: issue
+    # create the issue schema if the DB user may (dev); prod pre-creates it
+    create-schemas: true
+  kafka:
+    bootstrap-servers: ${PM_ISSUE_KAFKA_BROKERS:localhost:9094}
+    consumer:
+      group-id: ${PM_ISSUE_KAFKA_CONSUMER_GROUP:issue-service}
+      # events are protobuf bytes → deserialize as byte[] and proto-parse in code
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
+    listener:
+      ack-mode: manual_immediate
+
+# Topic names (referenced by consumers/producers)
+pm:
+  issue:
+    kafka:
+      topic-workspace-events: ${PM_ISSUE_KAFKA_TOPIC_WORKSPACE_EVENTS:workspace.events}
+      topic-user-events: ${PM_ISSUE_KAFKA_TOPIC_USER_EVENTS:auth.user.events}
+      topic-issue-events: ${PM_ISSUE_KAFKA_TOPIC_ISSUE_EVENTS:issue.events}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true

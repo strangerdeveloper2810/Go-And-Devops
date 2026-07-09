@@ -47,6 +47,17 @@ type WorkspaceService interface {
 	EnsureUserAndDefaultWorkspace(ctx context.Context, userID int64, email, name, avatar string) error
 }
 
+// EventPublisher — cổng phát domain event lên workspace.events (do events.Producer
+// hiện thực). Khai báo interface ở đây để service KHÔNG phụ thuộc trực tiếp vào
+// package events/Kafka (dễ test + cho phép truyền nil khi không phát event).
+// Phát event là BEST-EFFORT: các method không trả lỗi, producer tự log.
+type EventPublisher interface {
+	PublishWorkspaceCreated(ctx context.Context, ws *model.Workspace)
+	PublishProjectCreated(ctx context.Context, actorID int64, proj *model.Project)
+	PublishMemberAdded(ctx context.Context, actorID, workspaceID, userID int64, role string)
+	PublishMemberRemoved(ctx context.Context, actorID, workspaceID, userID int64)
+}
+
 type workspaceService struct {
 	db          *sql.DB
 	wsRepo      repository.WorkspaceRepository
@@ -54,8 +65,11 @@ type workspaceService struct {
 	projectRepo repository.ProjectRepository
 	roleRepo    repository.RoleRepository
 	userRepo    repository.UserRepository
+	publisher   EventPublisher
 }
 
+// NewWorkspaceService — publisher có thể là nil (không phát event); mọi thao tác
+// vẫn chạy bình thường vì phát event là BEST-EFFORT.
 func NewWorkspaceService(
 	db *sql.DB,
 	wsRepo repository.WorkspaceRepository,
@@ -63,6 +77,7 @@ func NewWorkspaceService(
 	projectRepo repository.ProjectRepository,
 	roleRepo repository.RoleRepository,
 	userRepo repository.UserRepository,
+	publisher EventPublisher,
 ) WorkspaceService {
 	return &workspaceService{
 		db:          db,
@@ -71,6 +86,7 @@ func NewWorkspaceService(
 		projectRepo: projectRepo,
 		roleRepo:    roleRepo,
 		userRepo:    userRepo,
+		publisher:   publisher,
 	}
 }
 
@@ -95,7 +111,21 @@ func (s *workspaceService) CreateWorkspace(ctx context.Context, ownerID int64, n
 	}
 
 	// Insert workspace + gán owner làm member (role 'owner') trong 1 transaction.
-	return s.createWorkspaceTx(ctx, ownerID, slug, name)
+	ws, err := s.createWorkspaceTx(ctx, ownerID, slug, name)
+	if err != nil {
+		return nil, err
+	}
+
+	// Phát event BEST-EFFORT sau khi tx commit: workspace.created + owner member.added.
+	// context.WithoutCancel: DB đã xong nên phát event KHÔNG gắn với vòng đời request —
+	// nếu client ngắt kết nối, ctx bị hủy sẽ khiến Kafka write fail và projection
+	// issue-service thiếu workspace/membership (bài học từ bản fix auth-service).
+	if s.publisher != nil {
+		pubCtx := context.WithoutCancel(ctx)
+		s.publisher.PublishWorkspaceCreated(pubCtx, ws)
+		s.publisher.PublishMemberAdded(pubCtx, ownerID, ws.ID, ownerID, model.RoleOwner)
+	}
+	return ws, nil
 }
 
 func (s *workspaceService) ListMyWorkspaces(ctx context.Context, userID int64) ([]*model.Workspace, error) {
@@ -179,6 +209,11 @@ func (s *workspaceService) AddMember(ctx context.Context, actorID, wsID, targetU
 		return nil, fmt.Errorf("add member: %w", err)
 	}
 	m.RoleName = role.Name
+
+	// Phát member.added BEST-EFFORT (WithoutCancel: xem chú thích ở CreateWorkspace).
+	if s.publisher != nil {
+		s.publisher.PublishMemberAdded(context.WithoutCancel(ctx), actorID, wsID, targetUserID, role.Name)
+	}
 	return m, nil
 }
 
@@ -205,7 +240,15 @@ func (s *workspaceService) RemoveMember(ctx context.Context, actorID, wsID, targ
 	if target.RoleName == model.RoleOwner {
 		return ErrConflict
 	}
-	return s.memberRepo.Remove(ctx, wsID, targetUserID)
+	if err := s.memberRepo.Remove(ctx, wsID, targetUserID); err != nil {
+		return err
+	}
+
+	// Phát member.removed BEST-EFFORT (WithoutCancel: xem chú thích ở CreateWorkspace).
+	if s.publisher != nil {
+		s.publisher.PublishMemberRemoved(context.WithoutCancel(ctx), actorID, wsID, targetUserID)
+	}
+	return nil
 }
 
 // ---- Projects ----
@@ -215,9 +258,23 @@ func (s *workspaceService) CreateProject(ctx context.Context, userID, wsID int64
 	if _, err := s.assertMember(ctx, wsID, userID); err != nil {
 		return nil, err
 	}
+	// Project key phải DUY NHẤT TOÀN HỆ THỐNG (Jira-style): issue-service sinh issue key
+	// "<KEY>-<n>" và tra cứu /api/v1/issues/{key} toàn cục, nên 2 workspace cùng key sẽ
+	// gây issue key trùng → nhập nhằng cross-tenant. Chặn tại đây → 409.
+	if taken, err := s.projectRepo.ExistsByKey(ctx, key); err != nil {
+		return nil, fmt.Errorf("check project key: %w", err)
+	} else if taken {
+		return nil, ErrConflict
+	}
 	p := &model.Project{WorkspaceID: wsID, Key: key, Name: name}
 	if err := s.projectRepo.Create(ctx, p); err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
+	}
+
+	// Phát project.created BEST-EFFORT (WithoutCancel: xem chú thích ở CreateWorkspace).
+	// issue-service dùng event này để map project → workspace + sinh issue key.
+	if s.publisher != nil {
+		s.publisher.PublishProjectCreated(context.WithoutCancel(ctx), userID, p)
 	}
 	return p, nil
 }
@@ -289,8 +346,21 @@ func (s *workspaceService) EnsureUserAndDefaultWorkspace(ctx context.Context, us
 	if name != "" {
 		wsName = fmt.Sprintf("%s's Workspace", name)
 	}
-	if _, err := s.createWorkspaceTx(ctx, userID, slug, wsName); err != nil {
+	ws, err := s.createWorkspaceTx(ctx, userID, slug, wsName)
+	if err != nil {
 		return fmt.Errorf("create default workspace: %w", err)
+	}
+
+	// Phát event BEST-EFFORT giống hệt đường HTTP CreateWorkspace: default workspace
+	// cũng phải phát workspace.created + owner member.added, nếu không projection
+	// members_projection của issue-service sẽ thiếu membership của owner → authz 403
+	// trên chính default workspace của họ. Consumer commit offset sau khi hàm này
+	// thành công nên không có retry backfill; phải phát tại đây.
+	// context.WithoutCancel: xem chú thích ở CreateWorkspace.
+	if s.publisher != nil {
+		pubCtx := context.WithoutCancel(ctx)
+		s.publisher.PublishWorkspaceCreated(pubCtx, ws)
+		s.publisher.PublishMemberAdded(pubCtx, userID, ws.ID, userID, model.RoleOwner)
 	}
 	return nil
 }

@@ -51,7 +51,8 @@ type UpstreamConfig struct {
 	AuthHTTPAddr      string `mapstructure:"auth_http_addr"`      // HTTP addr (reverse proxy register/login)
 	WorkspaceAddr     string `mapstructure:"workspace_addr"`      // gRPC addr
 	WorkspaceHTTPAddr string `mapstructure:"workspace_http_addr"` // HTTP addr (reverse proxy /workspaces/*)
-	IssueAddr         string `mapstructure:"issue_addr"`
+	IssueAddr         string `mapstructure:"issue_addr"`          // gRPC addr
+	IssueHTTPAddr     string `mapstructure:"issue_http_addr"`     // HTTP addr (reverse proxy /issues/* + /projects/*)
 	PageAddr          string `mapstructure:"page_addr"`
 	FileAddr          string `mapstructure:"file_addr"`
 	SearchAddr        string `mapstructure:"search_addr"`
@@ -93,6 +94,7 @@ func Load() (*Config, error) {
 	v.SetDefault("upstream.auth_addr", "auth-service:9001")
 	v.SetDefault("upstream.auth_http_addr", "auth-service:8001")
 	v.SetDefault("upstream.workspace_http_addr", "workspace-service:8002")
+	v.SetDefault("upstream.issue_http_addr", "issue-service:8003")
 
 	// Optional file override (mounted ConfigMap or local dev override)
 	v.SetConfigName("config")

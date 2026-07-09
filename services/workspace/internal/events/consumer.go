@@ -9,12 +9,20 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	pmv1 "github.com/pm-platform/proto-go/pm/v1"
 	"github.com/pm-platform/workspace/internal/config"
 	"github.com/pm-platform/workspace/internal/service"
 	"github.com/segmentio/kafka-go"
 	"google.golang.org/protobuf/proto"
+)
+
+// Backoff cho retry khi xử lý message lỗi tạm thời (VD: DB down). Tăng dần theo
+// cấp số nhân từ base tới max để không quay vòng nóng (busy-loop) làm ngập log.
+const (
+	retryBaseBackoff = 500 * time.Millisecond
+	retryMaxBackoff  = 30 * time.Second
 )
 
 // Consumer đọc event user.created từ Kafka rồi đẩy vào WorkspaceService.
@@ -79,14 +87,39 @@ func (c *Consumer) Run(ctx context.Context) error {
 			continue
 		}
 
-		if err := c.svc.EnsureUserAndDefaultWorkspace(ctx, evt.UserId, evt.Email, evt.Name, evt.AvatarUrl); err != nil {
-			// Lỗi tạm thời (VD: DB down) → KHÔNG commit để Kafka giao lại message
-			// sau (at-least-once). Handler idempotent nên nhận trùng vẫn an toàn.
+		// Lỗi tạm thời (VD: DB down) → PHẢI retry CHÍNH message này tại chỗ, KHÔNG
+		// được `continue` để fetch message kế. Lý do: FetchMessage đã đẩy vị trí đọc
+		// nội bộ sang record kế, và kafka-go CommitMessages commit offset kiểu
+		// cumulative (tới-VÀ-gồm-cả message được commit). Nếu bỏ qua message lỗi rồi
+		// commit một message SAU nó, offset của message lỗi bị commit theo → mất hẳn,
+		// không bao giờ giao lại (trái với ý định at-least-once). Vậy nên retry có
+		// backoff cho tới khi thành công; handler idempotent nên retry an toàn.
+		// Chỉ message poison (unmarshal lỗi, ở nhánh trên) mới được skip + commit.
+		backoff := retryBaseBackoff
+		for {
+			err := c.svc.EnsureUserAndDefaultWorkspace(ctx, evt.UserId, evt.Email, evt.Name, evt.AvatarUrl)
+			if err == nil {
+				break
+			}
+			// ctx cancel (shutdown) làm service call fail → thoát êm, không log ầm ĩ.
+			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
+				c.logger.Info("kafka consumer stopping")
+				return nil
+			}
 			c.logger.Error("ensure user and default workspace",
 				slog.Any("err", err),
 				slog.Int64("user_id", evt.UserId),
 			)
-			continue
+			// Chờ backoff rồi thử lại; ctx cancel trong lúc chờ cũng thoát êm.
+			select {
+			case <-ctx.Done():
+				c.logger.Info("kafka consumer stopping")
+				return nil
+			case <-time.After(backoff):
+			}
+			if backoff *= 2; backoff > retryMaxBackoff {
+				backoff = retryMaxBackoff
+			}
 		}
 
 		// Xử lý xong mới commit → offset chỉ tiến khi message đã được xử lý thành công.

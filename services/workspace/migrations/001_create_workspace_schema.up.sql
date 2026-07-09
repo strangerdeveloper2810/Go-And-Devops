@@ -77,3 +77,9 @@ CREATE INDEX IF NOT EXISTS idx_members_workspace_id  ON workspace.workspace_memb
 CREATE INDEX IF NOT EXISTS idx_members_user_id       ON workspace.workspace_members (user_id);
 CREATE INDEX IF NOT EXISTS idx_members_role_id       ON workspace.workspace_members (role_id);
 CREATE INDEX IF NOT EXISTS idx_projects_workspace_id ON workspace.projects (workspace_id);
+
+-- Project key DUY NHẤT TOÀN HỆ THỐNG (Jira-style), chỉ giữa project CÒN SỐNG (partial):
+-- issue-service sinh issue key "<KEY>-<n>" và tra cứu toàn cục → key trùng giữa 2 workspace
+-- gây nhập nhằng cross-tenant. UNIQUE(workspace_id,key) ở trên vẫn giữ (redundant nhưng vô hại).
+-- Service CreateProject cũng chặn trước (ExistsByKey → 409) để báo lỗi rõ ràng.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_key_global ON workspace.projects (key) WHERE deleted_at IS NULL;
