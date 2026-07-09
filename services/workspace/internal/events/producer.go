@@ -43,6 +43,13 @@ func NewProducer(cfg config.KafkaConfig, logger *slog.Logger) *Producer {
 		Addr:     kafka.TCP(cfg.Brokers...),
 		Topic:    cfg.WorkspaceEventsTopic,
 		Balancer: &kafka.Hash{},
+		// RequiredAcks phải set TƯỜNG MINH: struct-literal &kafka.Writer{} giữ
+		// zero value = RequireNone (acks=0, fire-and-forget) — broker KHÔNG trả
+		// ack nên WriteMessages luôn trả nil kể cả khi message mất → projection
+		// bên issue-service thiếu row vĩnh viễn (403/404). Chỉ path NewWriter()
+		// (deprecated) mới tự nâng 0→RequireAll. RequireAll = chờ full ISR ack,
+		// lỗi thật sẽ error ra để publish() log lại.
+		RequiredAcks: kafka.RequireAll,
 	}
 	return &Producer{writer: w, logger: logger}
 }

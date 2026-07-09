@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * IssueService — nghiệp vụ lõi của issue-service (Jira core): tạo/đọc/sửa/xoá issue và
@@ -72,6 +74,10 @@ public class IssueService {
     public Issue createIssue(long actorId, CreateIssueCommand cmd) {
         long workspaceId = assertProjectMember(actorId, cmd.projectId());
 
+        // assignee (nếu có) phải là thành viên workspace của issue — không cho gán cho người
+        // ngoài workspace hay user không tồn tại (giữ toàn vẹn dữ liệu assignee_id).
+        assertAssigneeMember(workspaceId, cmd.assigneeId());
+
         // type phải tồn tại và dùng được cho project này: hoặc system (project_id NULL)
         // hoặc thuộc đúng project.
         IssueType type = issueTypes.findById(cmd.typeId())
@@ -102,7 +108,7 @@ public class IssueService {
         issue.setDueDate(cmd.dueDate());
 
         Issue saved = issues.save(issue);
-        publisher.publishIssueCreated(workspaceId, actorId, saved);
+        publishAfterCommit(() -> publisher.publishIssueCreated(workspaceId, actorId, saved));
         return saved;
     }
 
@@ -129,6 +135,8 @@ public class IssueService {
             changed.add("priority");
         }
         if (cmd.assigneeId() != null) {
+            // assignee mới phải là thành viên workspace của issue (chặn gán cho người ngoài).
+            assertAssigneeMember(workspaceId, cmd.assigneeId());
             issue.setAssigneeId(cmd.assigneeId());
             changed.add("assignee_id");
         }
@@ -158,7 +166,7 @@ public class IssueService {
         }
 
         Issue saved = issues.save(issue);
-        publisher.publishIssueUpdated(workspaceId, actorId, saved, changed);
+        publishAfterCommit(() -> publisher.publishIssueUpdated(workspaceId, actorId, saved, changed));
         return saved;
     }
 
@@ -180,7 +188,8 @@ public class IssueService {
 
         issue.setStatus(toStatus);
         Issue saved = issues.save(issue);
-        publisher.publishIssueTransitioned(workspaceId, actorId, saved, fromStatus, toStatus);
+        publishAfterCommit(
+                () -> publisher.publishIssueTransitioned(workspaceId, actorId, saved, fromStatus, toStatus));
         return saved;
     }
 
@@ -248,6 +257,30 @@ public class IssueService {
     private Issue getExistingByKey(String key) {
         return issues.findByKeyAndDeletedAtIsNull(key)
                 .orElseThrow(() -> new NotFoundException("issue không tồn tại: " + key));
+    }
+
+    // assignee phải thuộc workspace của issue. null = không gán (bỏ qua). Không hợp lệ → 400.
+    private void assertAssigneeMember(long workspaceId, Long assigneeId) {
+        if (assigneeId != null && !members.existsByWorkspaceIdAndUserId(workspaceId, assigneeId)) {
+            throw new ValidationException(
+                    "assignee không phải thành viên workspace: " + assigneeId);
+        }
+    }
+
+    // Chạy publish CHỈ SAU khi transaction commit thành công: nếu commit rollback (vd mất
+    // kết nối lúc commit) thì KHÔNG phát event → tránh event "ma" cho state chưa từng tồn tại.
+    // Ngoài transaction (không nên xảy ra ở các @Transactional command) thì chạy ngay.
+    private void publishAfterCommit(Runnable publish) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    publish.run();
+                }
+            });
+        } else {
+            publish.run();
+        }
     }
 
     // Workflow áp dụng cho project: ưu tiên workflow mặc định RIÊNG của project, nếu không có

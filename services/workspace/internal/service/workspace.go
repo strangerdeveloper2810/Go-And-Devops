@@ -338,8 +338,21 @@ func (s *workspaceService) EnsureUserAndDefaultWorkspace(ctx context.Context, us
 	if name != "" {
 		wsName = fmt.Sprintf("%s's Workspace", name)
 	}
-	if _, err := s.createWorkspaceTx(ctx, userID, slug, wsName); err != nil {
+	ws, err := s.createWorkspaceTx(ctx, userID, slug, wsName)
+	if err != nil {
 		return fmt.Errorf("create default workspace: %w", err)
+	}
+
+	// Phát event BEST-EFFORT giống hệt đường HTTP CreateWorkspace: default workspace
+	// cũng phải phát workspace.created + owner member.added, nếu không projection
+	// members_projection của issue-service sẽ thiếu membership của owner → authz 403
+	// trên chính default workspace của họ. Consumer commit offset sau khi hàm này
+	// thành công nên không có retry backfill; phải phát tại đây.
+	// context.WithoutCancel: xem chú thích ở CreateWorkspace.
+	if s.publisher != nil {
+		pubCtx := context.WithoutCancel(ctx)
+		s.publisher.PublishWorkspaceCreated(pubCtx, ws)
+		s.publisher.PublishMemberAdded(pubCtx, userID, ws.ID, userID, model.RoleOwner)
 	}
 	return nil
 }

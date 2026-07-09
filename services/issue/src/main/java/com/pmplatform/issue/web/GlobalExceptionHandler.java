@@ -12,10 +12,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * GlobalExceptionHandler map các sentinel exception nghiệp vụ (Phase F) + lỗi validation của
@@ -24,8 +28,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
  * <ul>
  *   <li>{@link ValidationException} / lỗi bean-validation / body sai định dạng → 400</li>
  *   <li>{@link NotMemberException} / {@link NotOwnerException} → 403</li>
- *   <li>{@link NotFoundException} → 404</li>
+ *   <li>{@link NotFoundException} / route không khớp → 404</li>
  *   <li>{@link ConflictException} → 409</li>
+ *   <li>lỗi dispatch Spring MVC → 405 / 406 / 415</li>
  *   <li>còn lại → 500 INTERNAL (log stacktrace)</li>
  * </ul>
  */
@@ -86,6 +91,35 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiError> handleConflict(ConflictException ex) {
         return body(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage());
+    }
+
+    // ── 404 / 405 / 406 / 415 — dispatch lỗi của Spring MVC ──────────────────
+    // Phải khai báo tường minh: @ExceptionHandler(Exception.class) là super-type match
+    // nên ExceptionHandlerExceptionResolver (chạy trước DefaultHandlerExceptionResolver)
+    // sẽ "nuốt" các lỗi client này thành 500 nếu không có handler cụ thể.
+
+    /** HTTP method không được route hỗ trợ (vd POST vào endpoint chỉ có GET). */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return body(HttpStatus.METHOD_NOT_ALLOWED, "METHOD_NOT_ALLOWED", ex.getMessage());
+    }
+
+    /** Content-Type của request body không được hỗ trợ (vd không phải application/json). */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return body(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "UNSUPPORTED_MEDIA_TYPE", ex.getMessage());
+    }
+
+    /** Accept header client yêu cầu không thể đáp ứng. */
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<ApiError> handleMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return body(HttpStatus.NOT_ACCEPTABLE, "NOT_ACCEPTABLE", ex.getMessage());
+    }
+
+    /** Không có route/resource nào khớp path → 404 (thay vì 500). */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
+        return body(HttpStatus.NOT_FOUND, "NOT_FOUND", "không tìm thấy resource");
     }
 
     // ── 500 — fallback ───────────────────────────────────────────────────────

@@ -3,7 +3,9 @@ package com.pmplatform.issue.web.dto;
 import com.pmplatform.issue.domain.Issue;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * View của một {@link Issue} trả về cho client (không lộ {@code deletedAt}). Dùng làm giá trị
@@ -45,7 +47,10 @@ public record IssueResponse(
                 issue.getParentId(),
                 issue.getSprintId(),
                 issue.getStoryPoints(),
-                labels == null ? List.of() : List.of(labels),
+                // List.of(E...) là null-hostile → 1 phần tử null trong labels[] sẽ ném NPE
+                // (issue đã persist + issue.created đã publish trước khi map response). Lọc null
+                // để read (get/list/patch/transition) không kẹt 500 vĩnh viễn vì 1 row nhiễm null.
+                labels == null ? List.of() : Arrays.stream(labels).filter(Objects::nonNull).toList(),
                 issue.getDueDate(),
                 issue.getCreatedAt(),
                 issue.getUpdatedAt());
