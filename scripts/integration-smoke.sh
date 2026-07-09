@@ -26,17 +26,34 @@ LOGDIR="$(mktemp -d)"
 PASS=0; FAIL=0
 declare -a PIDS=()
 
-# ---- shared env cho cả 3 service (mỗi service chỉ đọc prefix của nó) ----
-export PM_AUTH_DATABASE_URL="postgres://postgres:postgres@localhost:5432/pmdb?sslmode=disable"
-export PM_AUTH_JWT_ACCESS_SECRET="dev-access-secret-change-me"
-export PM_AUTH_JWT_REFRESH_SECRET="dev-refresh-secret-change-me"
-export PM_AUTH_KAFKA_BROKERS="localhost:9094"
-export PM_WORKSPACE_DATABASE_URL="postgres://postgres:postgres@localhost:5432/pmdb?sslmode=disable"
-export PM_WORKSPACE_KAFKA_BROKERS="localhost:9094"
-# Gateway: default upstream là docker-name → PHẢI override sang localhost khi chạy trên host.
+# ---- nạp env từ .env (ưu tiên) hoặc .env.example (fallback) của TỪNG service ----
+# KHÔNG hardcode secret/credential trong script (tránh secret-scanner như GitGuardian):
+# giá trị DB URL + JWT secret nằm trong .env* của repo, chỉ nạp lúc runtime.
+load_env() { # load_env <service-dir>
+  local d="$1" f
+  for f in "$d/.env" "$d/.env.example"; do
+    if [ -f "$f" ]; then set -a; . "$f"; set +a; return 0; fi
+  done
+  echo "WARN: không thấy .env/.env.example trong $d"; return 1
+}
+load_env services/auth
+load_env services/workspace
+load_env services/api-gateway
+
+# Chạy trên host (không phải trong docker network): ép host docker → localhost bằng
+# parameter-expansion trên giá trị ĐÃ nạp → KHÔNG viết credential vào script.
+export PM_AUTH_DATABASE_URL="${PM_AUTH_DATABASE_URL//@postgres:/@localhost:}"
+export PM_WORKSPACE_DATABASE_URL="${PM_WORKSPACE_DATABASE_URL//@postgres:/@localhost:}"
+export PM_AUTH_KAFKA_BROKERS="${PM_AUTH_KAFKA_BROKERS:-localhost:9094}"
+export PM_WORKSPACE_KAFKA_BROKERS="${PM_WORKSPACE_KAFKA_BROKERS:-localhost:9094}"
+# Upstream gateway mặc định là docker-name (auth-service:...) → override sang localhost.
 export PM_API_GATEWAY_UPSTREAM_AUTH_ADDR="localhost:9001"
 export PM_API_GATEWAY_UPSTREAM_AUTH_HTTP_ADDR="localhost:8001"
 export PM_API_GATEWAY_UPSTREAM_WORKSPACE_HTTP_ADDR="localhost:8002"
+
+# Tách user/pass từ DATABASE_URL đã nạp cho psql (không hardcode credential).
+_dbcred="${PM_WORKSPACE_DATABASE_URL#*://}"; _dbcred="${_dbcred%%@*}"
+DBUSER="${_dbcred%%:*}"; DBPASS="${_dbcred#*:}"
 
 # ---- helpers ----
 say()  { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
@@ -89,7 +106,7 @@ req() {
   else bad "$method $path → $code (mong đợi $want) | body: ${REPLY:0:200}"; return 1; fi
 }
 
-pg() { docker exec -e PGPASSWORD=postgres pm-postgres psql -U postgres -d pmdb -tAc "$1" 2>/dev/null; }
+pg() { docker exec -e PGPASSWORD="$DBPASS" pm-postgres psql -U "$DBUSER" -d pmdb -tAc "$1" 2>/dev/null; }
 
 # ==========================================================================
 say "Preflight"
