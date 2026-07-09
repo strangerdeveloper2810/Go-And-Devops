@@ -97,7 +97,14 @@ func NewHTTPServer(
 				return
 			}
 			// gin wildcard *proxyPath đã kèm dấu "/" đầu → TrimPrefix tránh "//".
-			c.Request.URL.Path = "/api/v1/auth/" + strings.TrimPrefix(c.Param("proxyPath"), "/")
+			// Phòng thủ: nếu proxyPath rỗng thì không thêm "/" đuôi để tránh
+			// redirect thừa (cùng lý do với workspace proxy bên dưới).
+			sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+			target := "/api/v1/auth"
+			if sub != "" {
+				target += "/" + sub
+			}
+			c.Request.URL.Path = target
 			authProxy.ServeHTTP(c.Writer, c.Request)
 		})
 	}
@@ -111,20 +118,35 @@ func NewHTTPServer(
 			c.JSON(http.StatusOK, gin.H{"user_id": userID, "email": email})
 		})
 
-		// Workspace proxy: forward /api/v1/workspaces/* → workspace-service HTTP.
+		// Workspace proxy: forward /api/v1/workspaces và /api/v1/workspaces/* → workspace HTTP.
 		// Nằm trong nhóm protected nên JWTAuth chạy trước, verify token và inject
 		// header X-User-ID / X-User-Email → workspace-service tin danh tính này.
-		protected.Any("/workspaces/*proxyPath", func(c *gin.Context) {
+		//
+		// Đăng ký CẢ path collection trần ("/workspaces") LẪN catch-all
+		// ("/workspaces/*proxyPath"): route catch-all của gin KHÔNG match path trần,
+		// nên nếu chỉ có nó thì gin RedirectTrailingSlash sẽ 301/307 "/workspaces"
+		// → "/workspaces/" TRƯỚC khi JWTAuth chạy — vừa lộ redirect cho client, vừa
+		// bỏ qua auth trên path trần. Có route trần → handler chạy trực tiếp, đúng.
+		wsProxy := func(c *gin.Context) {
 			if workspaceProxy == nil {
 				c.JSON(http.StatusBadGateway, gin.H{
 					"error": gin.H{"code": "WORKSPACE_UNAVAILABLE", "message": "workspace service not configured"},
 				})
 				return
 			}
-			// gin wildcard *proxyPath đã kèm dấu "/" đầu → TrimPrefix tránh "//".
-			c.Request.URL.Path = "/api/v1/workspaces/" + strings.TrimPrefix(c.Param("proxyPath"), "/")
+			// gin wildcard *proxyPath kèm dấu "/" đầu → TrimPrefix tránh "//".
+			// Path trần → Param("proxyPath") rỗng → giữ "/api/v1/workspaces" (không "/"
+			// đuôi) khớp route ws.POST("")/ws.GET("") của workspace-service.
+			sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+			target := "/api/v1/workspaces"
+			if sub != "" {
+				target += "/" + sub
+			}
+			c.Request.URL.Path = target
 			workspaceProxy.ServeHTTP(c.Writer, c.Request)
-		})
+		}
+		protected.Any("/workspaces", wsProxy)
+		protected.Any("/workspaces/*proxyPath", wsProxy)
 	}
 
 	return &HTTPServer{

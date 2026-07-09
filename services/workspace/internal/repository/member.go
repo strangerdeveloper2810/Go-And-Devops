@@ -42,10 +42,12 @@ func (r *postgreMemberRepository) Add(ctx context.Context, member *model.Member)
 
 func (r *postgreMemberRepository) ListByWorkspace(ctx context.Context, workspaceID int64) ([]*model.Member, error) {
 	// JOIN roles để lấy role name cho từng member.
+	// JOIN workspaces + lọc deleted_at IS NULL: workspace bị soft delete coi như không có member.
 	query := `
         SELECT m.id, m.workspace_id, m.user_id, m.role_id, m.joined_at, r.name
         FROM workspace.workspace_members m
         JOIN workspace.roles r ON r.id = m.role_id
+        JOIN workspace.workspaces w ON w.id = m.workspace_id AND w.deleted_at IS NULL
         WHERE m.workspace_id = $1
         ORDER BY m.id`
 
@@ -72,10 +74,12 @@ func (r *postgreMemberRepository) ListByWorkspace(ctx context.Context, workspace
 }
 
 func (r *postgreMemberRepository) Get(ctx context.Context, workspaceID, userID int64) (*model.Member, error) {
+	// JOIN workspaces + lọc deleted_at IS NULL: workspace bị soft delete → không còn membership hợp lệ.
 	query := `
         SELECT m.id, m.workspace_id, m.user_id, m.role_id, m.joined_at, r.name
         FROM workspace.workspace_members m
         JOIN workspace.roles r ON r.id = m.role_id
+        JOIN workspace.workspaces w ON w.id = m.workspace_id AND w.deleted_at IS NULL
         WHERE m.workspace_id = $1 AND m.user_id = $2`
 
 	m := &model.Member{}

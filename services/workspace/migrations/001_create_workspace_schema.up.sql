@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS workspace.users (
 -- workspaces = tenant. Soft delete qua deleted_at (NULL = còn sống).
 CREATE TABLE IF NOT EXISTS workspace.workspaces (
     id         BIGSERIAL    PRIMARY KEY,
-    slug       VARCHAR(255) NOT NULL UNIQUE,        -- định danh URL-friendly, duy nhất toàn hệ thống
+    slug       VARCHAR(255) NOT NULL,               -- định danh URL-friendly; unique enforced qua partial index bên dưới (chỉ hàng chưa soft-delete)
     name       VARCHAR(255) NOT NULL,
     owner_id   BIGINT       NOT NULL,               -- user id chủ workspace
     plan       VARCHAR(20)  NOT NULL DEFAULT 'free',
@@ -64,7 +64,9 @@ VALUES
     (NULL, 'member', '{}', TRUE);
 
 -- Index cho FK + cột query thường xuyên.
-CREATE INDEX idx_workspaces_slug          ON workspace.workspaces (slug);
+-- Partial UNIQUE: slug chỉ unique giữa các workspace CHƯA soft-delete. Khớp filter đọc
+-- GetBySlug (WHERE slug = $1 AND deleted_at IS NULL) → slug đã xóa được tái sử dụng, reads/writes đồng nhất.
+CREATE UNIQUE INDEX idx_workspaces_slug    ON workspace.workspaces (slug) WHERE deleted_at IS NULL;
 CREATE INDEX idx_workspaces_owner_id      ON workspace.workspaces (owner_id);
 CREATE INDEX idx_roles_workspace_id       ON workspace.roles (workspace_id);
 CREATE INDEX idx_members_workspace_id     ON workspace.workspace_members (workspace_id);

@@ -81,12 +81,15 @@ func (s *workspaceService) CreateWorkspace(ctx context.Context, ownerID int64, n
 	base := slugify(name)
 	slug := base
 	for i := 0; i < 5; i++ {
-		_, err := s.wsRepo.GetBySlug(ctx, slug)
+		// Dedupe theo workspace CÒN SỐNG (slugTaken bỏ qua row đã soft-delete),
+		// khớp partial unique index WHERE deleted_at IS NULL → slug đã xoá mềm được
+		// tái sử dụng thay vì phải gắn hậu tố thừa.
+		taken, err := s.slugTaken(ctx, slug)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				break // slug trống → dùng được
-			}
-			return nil, fmt.Errorf("check slug: %w", err)
+			return nil, err
+		}
+		if !taken {
+			break // slug trống → dùng được
 		}
 		slug = base + "-" + randSuffix()
 	}
@@ -240,6 +243,14 @@ func (s *workspaceService) ListRoles(ctx context.Context, userID, wsID int64) ([
 // CheckMembership: dùng cho gRPC (service khác hỏi user có thuộc workspace không).
 // Trả về (isMember, roleName). Không phải member → (false, "", nil), KHÔNG lỗi.
 func (s *workspaceService) CheckMembership(ctx context.Context, wsID, userID int64) (bool, string, error) {
+	// Workspace đã soft-delete → coi như không phải member: member row còn sót lại
+	// sau soft-delete, tránh cấp authz cho caller trên tenant đã chết.
+	if _, err := s.wsRepo.GetByID(ctx, wsID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", fmt.Errorf("check workspace liveness: %w", err)
+	}
 	m, err := s.memberRepo.Get(ctx, wsID, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -261,10 +272,17 @@ func (s *workspaceService) EnsureUserAndDefaultWorkspace(ctx context.Context, us
 	}
 
 	slug := fmt.Sprintf("u-%d-default", userID)
-	if _, err := s.wsRepo.GetBySlug(ctx, slug); err == nil {
-		return nil // đã có default workspace → không tạo lại
-	} else if !errors.Is(err, sql.ErrNoRows) {
+	// Idempotent: chỉ tạo default workspace nếu user CHƯA có workspace còn sống ở slug
+	// này (slugTaken bỏ qua row đã soft-delete, khớp partial unique index). Kafka
+	// user.created chỉ phát 1 lần lúc đăng ký (user chưa có gì) nên nhánh tạo lại sau
+	// soft-delete gần như không xảy ra thực tế; partial index đảm bảo INSERT không
+	// dính unique_violation kể cả khi tồn tại row cùng slug đã xoá mềm.
+	taken, err := s.slugTaken(ctx, slug)
+	if err != nil {
 		return fmt.Errorf("check default workspace: %w", err)
+	}
+	if taken {
+		return nil // đã có default workspace còn sống → không tạo lại
 	}
 
 	wsName := "My Workspace"
@@ -293,6 +311,22 @@ func (s *workspaceService) createWorkspaceTx(ctx context.Context, ownerID int64,
 	}
 	defer tx.Rollback() // no-op nếu đã Commit
 
+	// Đảm bảo user projection tồn tại TRƯỚC khi insert member: FK
+	// workspace_members.user_id → workspace.users. Đường HTTP CreateWorkspace có thể
+	// chạy TRƯỚC khi Kafka user.created được consume (JWT hợp lệ ngay sau đăng ký),
+	// nên projection có thể chưa có caller → member insert dính FK violation 500.
+	// Insert placeholder id; event Kafka tới sau sẽ Upsert bổ sung email/name/avatar.
+	// ON CONFLICT DO NOTHING → idempotent, an toàn cả khi gọi từ đường Kafka
+	// (EnsureUserAndDefaultWorkspace đã Upsert user đầy đủ trước đó).
+	if _, err = tx.ExecContext(ctx, `
+        INSERT INTO workspace.users (id)
+        VALUES ($1)
+        ON CONFLICT (id) DO NOTHING`,
+		ownerID,
+	); err != nil {
+		return nil, fmt.Errorf("ensure user projection: %w", err)
+	}
+
 	ws := &model.Workspace{Slug: slug, Name: name, OwnerID: ownerID, Plan: model.WorkspacePlanFree}
 	err = tx.QueryRowContext(ctx, `
         INSERT INTO workspace.workspaces (slug, name, owner_id, plan)
@@ -319,8 +353,32 @@ func (s *workspaceService) createWorkspaceTx(ctx context.Context, ownerID int64,
 	return ws, nil
 }
 
+// slugTaken: slug đã bị workspace CÒN SỐNG chiếm chưa (bỏ qua row đã soft-delete).
+// Khớp partial unique index idx_workspaces_slug (WHERE deleted_at IS NULL) và filter
+// đọc GetBySlug: slug của workspace đã xoá mềm được tái sử dụng, nên dedupe chỉ xét
+// row còn sống. Nếu đếm cả row đã xoá thì tầng app sẽ chặn tái dùng dù DB cho phép
+// → mâu thuẫn với partial index (đây là lỗi hai bản fix song song từng đá nhau).
+func (s *workspaceService) slugTaken(ctx context.Context, slug string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM workspace.workspaces WHERE slug = $1 AND deleted_at IS NULL)`,
+		slug,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check slug taken: %w", err)
+	}
+	return exists, nil
+}
+
 // assertMember: user phải là thành viên workspace, else ErrNotMember.
 func (s *workspaceService) assertMember(ctx context.Context, wsID, userID int64) (*model.Member, error) {
+	// Workspace phải còn sống trước khi xét membership: member row vẫn tồn tại sau
+	// khi workspace bị soft-delete, nên nếu bỏ qua bước này thì thao tác ghi (vd
+	// CreateProject/AddMember) sẽ vượt authz và tác động lên tenant đã chết.
+	// GetByID lọc deleted_at IS NULL → workspace đã xoá mềm trả ErrNotFound.
+	if _, err := s.wsRepo.GetByID(ctx, wsID); err != nil {
+		return nil, mapNotFound(err)
+	}
 	m, err := s.memberRepo.Get(ctx, wsID, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
