@@ -49,6 +49,14 @@ func Load() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
+	// AutomaticEnv chỉ tự bind các key viper ĐÃ biết (có SetDefault/BindEnv,
+	// hoặc nằm trong config file đọc được). Các key BẮT BUỘC mà KHÔNG có
+	// default phải BindEnv thủ công — nếu không Unmarshal sẽ bỏ qua env var,
+	// dẫn tới validate fail dù env đã set đúng (bẫy kinh điển của viper).
+	_ = v.BindEnv("database.url")
+	_ = v.BindEnv("jwt.access_secret")
+	_ = v.BindEnv("jwt.refresh_secret")
+
 	// Defaults
 	v.SetDefault("env", "dev")
 	v.SetDefault("log_level", "info")
