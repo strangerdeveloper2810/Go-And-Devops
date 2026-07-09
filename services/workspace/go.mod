@@ -1,6 +1,6 @@
 module github.com/pm-platform/workspace
 
-go 1.25.0
+go 1.25
 
 replace github.com/pm-platform/proto-go => ../../packages/proto-go
 

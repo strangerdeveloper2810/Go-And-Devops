@@ -66,8 +66,8 @@ func run() error {
 	// ─── Metrics + health ────────────────────────────────────
 	metrics := observability.NewMetrics()
 	health := handler.NewHealthChecker(
-		// Add DepChecks here as upstream services come online, e.g.:
-		// {Name: "auth", Ping: client.PingAuth},
+	// Add DepChecks here as upstream services come online, e.g.:
+	// {Name: "auth", Ping: client.PingAuth},
 	)
 
 	// ─── Servers ────────────────────────────────────────────

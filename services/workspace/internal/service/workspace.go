@@ -16,10 +16,10 @@ import (
 // Sentinel errors — handler map sang HTTP status tương ứng.
 // Dùng errors.Is để so khớp, không so sánh chuỗi.
 var (
-	ErrNotFound  = errors.New("not found")           // 404
-	ErrNotMember = errors.New("not a workspace member") // 403
+	ErrNotFound  = errors.New("not found")               // 404
+	ErrNotMember = errors.New("not a workspace member")  // 403
 	ErrNotOwner  = errors.New("not the workspace owner") // 403
-	ErrConflict  = errors.New("conflict")             // 409
+	ErrConflict  = errors.New("conflict")                // 409
 )
 
 // WorkspaceService: business logic + phân quyền (authz) cho domain workspace.
