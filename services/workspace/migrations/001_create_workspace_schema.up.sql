@@ -58,16 +58,20 @@ CREATE TABLE IF NOT EXISTS workspace.projects (
 );
 
 -- Seed system roles: mọi workspace dùng chung 'owner' và 'member'.
+-- Guard NOT EXISTS → chạy lại migration KHÔNG seed trùng (idempotent).
 INSERT INTO workspace.roles (workspace_id, name, permissions, is_system)
-VALUES
-    (NULL, 'owner',  '{}', TRUE),
-    (NULL, 'member', '{}', TRUE);
+SELECT NULL, r.name, '{}'::jsonb, TRUE
+FROM (VALUES ('owner'), ('member')) AS r(name)
+WHERE NOT EXISTS (
+    SELECT 1 FROM workspace.roles x
+    WHERE x.name = r.name AND x.workspace_id IS NULL
+);
 
--- Index cho FK + cột query thường xuyên.
-CREATE INDEX idx_workspaces_slug          ON workspace.workspaces (slug);
-CREATE INDEX idx_workspaces_owner_id      ON workspace.workspaces (owner_id);
-CREATE INDEX idx_roles_workspace_id       ON workspace.roles (workspace_id);
-CREATE INDEX idx_members_workspace_id     ON workspace.workspace_members (workspace_id);
-CREATE INDEX idx_members_user_id          ON workspace.workspace_members (user_id);
-CREATE INDEX idx_members_role_id          ON workspace.workspace_members (role_id);
-CREATE INDEX idx_projects_workspace_id    ON workspace.projects (workspace_id);
+-- Index cho FK + cột query thường xuyên (IF NOT EXISTS → re-run an toàn).
+CREATE INDEX IF NOT EXISTS idx_workspaces_slug       ON workspace.workspaces (slug);
+CREATE INDEX IF NOT EXISTS idx_workspaces_owner_id   ON workspace.workspaces (owner_id);
+CREATE INDEX IF NOT EXISTS idx_roles_workspace_id    ON workspace.roles (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_members_workspace_id  ON workspace.workspace_members (workspace_id);
+CREATE INDEX IF NOT EXISTS idx_members_user_id       ON workspace.workspace_members (user_id);
+CREATE INDEX IF NOT EXISTS idx_members_role_id       ON workspace.workspace_members (role_id);
+CREATE INDEX IF NOT EXISTS idx_projects_workspace_id ON workspace.projects (workspace_id);

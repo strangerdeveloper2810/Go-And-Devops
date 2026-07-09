@@ -114,7 +114,13 @@ func NewHTTPServer(
 		// Workspace proxy: forward /api/v1/workspaces/* → workspace-service HTTP.
 		// Nằm trong nhóm protected nên JWTAuth chạy trước, verify token và inject
 		// header X-User-ID / X-User-Email → workspace-service tin danh tính này.
-		protected.Any("/workspaces/*proxyPath", func(c *gin.Context) {
+		//
+		// Đăng ký CẢ route đúng `/workspaces` (collection) LẪN `/workspaces/*proxyPath`
+		// (item + sub-resource). Nếu chỉ có wildcard, request tới `/workspaces` (không
+		// có "/" cuối) sẽ bị gin RedirectTrailingSlash chuyển sang `/workspaces/` TRƯỚC
+		// khi chạy JWTAuth → vừa bỏ qua auth (mất 401), vừa lặp redirect vô hạn với
+		// RedirectTrailingSlash của workspace-service. Khớp thẳng cả hai path để tránh.
+		workspaceProxyHandler := func(c *gin.Context) {
 			if workspaceProxy == nil {
 				c.JSON(http.StatusBadGateway, gin.H{
 					"error": gin.H{"code": "WORKSPACE_UNAVAILABLE", "message": "workspace service not configured"},
@@ -122,9 +128,18 @@ func NewHTTPServer(
 				return
 			}
 			// gin wildcard *proxyPath đã kèm dấu "/" đầu → TrimPrefix tránh "//".
-			c.Request.URL.Path = "/api/v1/workspaces/" + strings.TrimPrefix(c.Param("proxyPath"), "/")
+			// Route đúng `/workspaces` không có param → rest rỗng → giữ path không "/" cuối
+			// (khớp `ws.POST("")` bên workspace-service, không đẻ thêm redirect).
+			rest := strings.TrimPrefix(c.Param("proxyPath"), "/")
+			if rest == "" {
+				c.Request.URL.Path = "/api/v1/workspaces"
+			} else {
+				c.Request.URL.Path = "/api/v1/workspaces/" + rest
+			}
 			workspaceProxy.ServeHTTP(c.Writer, c.Request)
-		})
+		}
+		protected.Any("/workspaces", workspaceProxyHandler)
+		protected.Any("/workspaces/*proxyPath", workspaceProxyHandler)
 	}
 
 	return &HTTPServer{

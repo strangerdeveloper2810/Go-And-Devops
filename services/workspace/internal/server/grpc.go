@@ -16,10 +16,10 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	pmv1 "github.com/pm-platform/proto-go/pm/v1"
 	"github.com/pm-platform/workspace/internal/config"
 	"github.com/pm-platform/workspace/internal/model"
 	"github.com/pm-platform/workspace/internal/service"
-	pmv1 "github.com/pm-platform/proto-go/pm/v1"
 )
 
 // WorkspaceGRPCServer implements the gRPC WorkspaceService generated from proto.
