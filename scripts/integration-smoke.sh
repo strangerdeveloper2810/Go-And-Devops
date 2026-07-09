@@ -48,11 +48,12 @@ cleanup() {
   for pid in ${PIDS[@]+"${PIDS[@]}"}; do
     [ -n "${pid:-}" ] && kill "$pid" 2>/dev/null && wait "$pid" 2>/dev/null
   done
-  # go run spawn binary con → dọn theo tên cmd cho chắc.
-  pkill -f 'go-build.*/cmd/auth' 2>/dev/null || true
-  pkill -f 'exe/auth' 2>/dev/null || true
-  pkill -f 'exe/workspace' 2>/dev/null || true
-  pkill -f 'exe/api-gateway' 2>/dev/null || true
+  # `go run` spawn binary con trong thư mục temp → nó orphan khi parent bị kill,
+  # nên quét theo PORT app (bulletproof, chỉ đụng port của 3 service này).
+  for p in 8000 8001 8002 9000 9001 9002; do
+    lp="$(lsof -ti tcp:$p 2>/dev/null)"
+    [ -n "$lp" ] && kill $lp 2>/dev/null
+  done
   printf 'Logs còn ở: %s\n' "$LOGDIR"
 }
 trap cleanup EXIT INT TERM
