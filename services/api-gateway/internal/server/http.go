@@ -104,6 +104,18 @@ func NewHTTPServer(
 		}
 	}
 
+	// File reverse proxy target (file-service HTTP). Cùng pattern với page.
+	// Nil nếu addr trống/parse lỗi → route trả 502 thay vì crash.
+	var fileProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.FileHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.file_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			fileProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
 	// ─── Public routes — không cần JWT ───────────────────────────
 	v1 := r.Group("/api/v1")
 	{
@@ -243,6 +255,27 @@ func NewHTTPServer(
 		protected.Any("/spaces/*proxyPath", pageProxyTo("/api/v1/spaces"))
 		protected.Any("/pages", pageProxyTo("/api/v1/pages"))
 		protected.Any("/pages/*proxyPath", pageProxyTo("/api/v1/pages"))
+
+		// File proxy: forward /api/v1/files[/*] → file-service HTTP (upload/download/metadata).
+		// Đăng ký CẢ path trần LẪN catch-all (cùng lý do RedirectTrailingSlash). X-User-ID
+		// đã được JWTAuth set → file-service dùng làm owner. Multipart upload forward nguyên request.
+		fileProxyHandler := func(c *gin.Context) {
+			if fileProxy == nil {
+				c.JSON(http.StatusBadGateway, gin.H{
+					"error": gin.H{"code": "FILE_UNAVAILABLE", "message": "file service not configured"},
+				})
+				return
+			}
+			sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+			target := "/api/v1/files"
+			if sub != "" {
+				target += "/" + sub
+			}
+			c.Request.URL.Path = target
+			fileProxy.ServeHTTP(c.Writer, c.Request)
+		}
+		protected.Any("/files", fileProxyHandler)
+		protected.Any("/files/*proxyPath", fileProxyHandler)
 	}
 
 	return &HTTPServer{
