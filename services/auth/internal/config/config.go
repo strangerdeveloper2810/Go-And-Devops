@@ -14,6 +14,7 @@ type Config struct {
 	Server   ServerConfig   `mapstructure:"server"`
 	Database DatabaseConfig `mapstructure:"database"`
 	JWT      JWTConfig      `mapstructure:"jwt"`
+	Kafka    KafkaConfig    `mapstructure:"kafka"`
 	OTel     OTelConfig     `mapstructure:"otel"`
 }
 
@@ -36,6 +37,13 @@ type JWTConfig struct {
 	RefreshTTL    time.Duration `mapstructure:"refresh_ttl"`
 }
 
+// KafkaConfig — auth-service phát event user.created lên Kafka để các service
+// khác (workspace) consume. Brokers: danh sách broker; UserEventsTopic: topic đích.
+type KafkaConfig struct {
+	Brokers         []string `mapstructure:"brokers"`
+	UserEventsTopic string   `mapstructure:"user_events_topic"`
+}
+
 type OTelConfig struct {
 	Enabled         bool    `mapstructure:"enabled"`
 	ServiceName     string  `mapstructure:"service_name"`
@@ -56,6 +64,7 @@ func Load() (*Config, error) {
 	_ = v.BindEnv("database.url")
 	_ = v.BindEnv("jwt.access_secret")
 	_ = v.BindEnv("jwt.refresh_secret")
+	_ = v.BindEnv("kafka.brokers")
 
 	// Defaults
 	v.SetDefault("env", "dev")
@@ -67,6 +76,8 @@ func Load() (*Config, error) {
 	v.SetDefault("server.shutdown_timeout", "30s")
 	v.SetDefault("jwt.access_ttl", "15m")
 	v.SetDefault("jwt.refresh_ttl", "168h")
+	v.SetDefault("kafka.brokers", []string{"localhost:9094"})
+	v.SetDefault("kafka.user_events_topic", "auth.user.events")
 	v.SetDefault("otel.enabled", false)
 	v.SetDefault("otel.service_name", "auth-service")
 	v.SetDefault("otel.otlp_endpoint", "otel-collector:4317")

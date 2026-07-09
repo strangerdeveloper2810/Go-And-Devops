@@ -23,6 +23,7 @@ import (
 
 	"github.com/pm-platform/auth/internal/config"
 	"github.com/pm-platform/auth/internal/database"
+	"github.com/pm-platform/auth/internal/events"
 	"github.com/pm-platform/auth/internal/handler"
 	"github.com/pm-platform/auth/internal/observability"
 	"github.com/pm-platform/auth/internal/repository"
@@ -88,8 +89,17 @@ func run() error {
 	// Đây là "chuỗi cắm dây" của Clean Architecture:
 	//   repo cần db, service cần repo + jwt config, handler cần service.
 	// Mỗi lớp chỉ biết lớp ngay dưới nó qua interface → dễ test/thay thế.
+	// Kafka producer: phát event user.created lên auth.user.events.
+	// BEST-EFFORT — inject vào service; lỗi publish chỉ được log, không fail đăng ký.
+	userEventProducer := events.NewProducer(cfg.Kafka, logger)
+	defer func() {
+		if err := userEventProducer.Close(); err != nil {
+			logger.Error("close kafka producer", slog.Any("err", err))
+		}
+	}()
+
 	userRepo := repository.NewUserRepository(db)
-	authSvc := service.NewAuthService(userRepo, cfg.JWT)
+	authSvc := service.NewAuthService(userRepo, cfg.JWT, userEventProducer)
 	authHandler := handler.NewAuthHandler(authSvc)
 
 	// ─── 7. Servers: HTTP (Gin) + gRPC ───────────────────────────

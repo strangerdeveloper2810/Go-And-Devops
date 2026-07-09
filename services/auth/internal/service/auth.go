@@ -33,13 +33,23 @@ type TokenClaims struct {
 
 const bcryptCost = 12
 
+// UserEventPublisher — cổng phát event user.created (do events.Producer hiện thực).
+// Khai báo interface ở đây để service KHÔNG phụ thuộc trực tiếp vào package
+// events/Kafka (dễ test + cho phép truyền nil khi không bật Kafka).
+type UserEventPublisher interface {
+	PublishUserCreated(ctx context.Context, user *model.User)
+}
+
 type authService struct {
 	repo      repository.UserRepository
 	jwtConfig config.JWTConfig
+	publisher UserEventPublisher
 }
 
-func NewAuthService(repo repository.UserRepository, jwtConfig config.JWTConfig) AuthService {
-	return &authService{repo: repo, jwtConfig: jwtConfig}
+// NewAuthService — publisher có thể là nil (không phát event); Register vẫn chạy
+// bình thường vì phát event là BEST-EFFORT.
+func NewAuthService(repo repository.UserRepository, jwtConfig config.JWTConfig, publisher UserEventPublisher) AuthService {
+	return &authService{repo: repo, jwtConfig: jwtConfig, publisher: publisher}
 }
 
 func (s *authService) Register(ctx context.Context, email, password, name string) (*model.User, error) {
@@ -63,6 +73,16 @@ func (s *authService) Register(ctx context.Context, email, password, name string
 
 	if err := s.repo.Create(ctx, user); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
+	}
+
+	// Phát event user.created để workspace-service tạo default workspace.
+	// BEST-EFFORT: lỗi Kafka KHÔNG làm hỏng đăng ký (producer tự log).
+	// Dùng context.WithoutCancel: DB đã commit xong nên việc phát event KHÔNG
+	// được gắn với vòng đời request — nếu client ngắt kết nối, ctx bị hủy sẽ
+	// khiến Kafka write fail với context.Canceled và event bị mất im lặng
+	// (đây là trigger DUY NHẤT provision user ở workspace-service).
+	if s.publisher != nil {
+		s.publisher.PublishUserCreated(context.WithoutCancel(ctx), user)
 	}
 
 	return user, nil

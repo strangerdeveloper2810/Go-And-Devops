@@ -6,10 +6,11 @@
 //
 // CI / production builds use each service's go.mod with its own replace
 // directive, so go.work is dev-only convenience.
-go 1.25
+go 1.25.0
 
 use (
 	./packages/proto-go
 	./services/api-gateway
 	./services/auth
+	./services/workspace
 )
