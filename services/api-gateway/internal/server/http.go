@@ -92,6 +92,18 @@ func NewHTTPServer(
 		}
 	}
 
+	// Page reverse proxy target (page-service HTTP). Cùng pattern với issue.
+	// Nil nếu addr trống/parse lỗi → route trả 502 thay vì crash.
+	var pageProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.PageHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.page_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			pageProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
 	// ─── Public routes — không cần JWT ───────────────────────────
 	v1 := r.Group("/api/v1")
 	{
@@ -195,6 +207,42 @@ func NewHTTPServer(
 		protected.Any("/issues", issueProxyTo("/api/v1/issues"))
 		protected.Any("/issues/*proxyPath", issueProxyTo("/api/v1/issues"))
 		protected.Any("/projects/*proxyPath", issueProxyTo("/api/v1/projects"))
+
+		// Page proxy: forward /api/v1/spaces[/*] và /api/v1/pages[/*] → page HTTP.
+		// page-service (Confluence core) sở hữu CẢ space-scoped ("/spaces/{key}",
+		// "/spaces/{key}/pages"…) LẪN page-scoped ("/pages/{id}", "/pages/{id}/children"…)
+		// paths. Authz = workspace membership (page-service tự check qua projections).
+		//
+		// JWTAuth (nhóm protected) đã set X-User-ID / X-User-Email lên c.Request.Header →
+		// reverse proxy forward nguyên request nên page-service nhận danh tính đã verify.
+		//
+		// Đăng ký CẢ path trần LẪN catch-all "*proxyPath" cho mỗi collection (cùng lý do
+		// RedirectTrailingSlash như workspace/issue ở trên: nếu chỉ có catch-all thì gin
+		// sẽ 301 "/spaces" → "/spaces/" trước khi JWTAuth chạy).
+		//
+		// pageProxyTo dựng lại path đích từ prefix cố định + phần wildcard, tái dùng cho
+		// cả hai prefix (giống issueProxyTo).
+		pageProxyTo := func(prefix string) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				if pageProxy == nil {
+					c.JSON(http.StatusBadGateway, gin.H{
+						"error": gin.H{"code": "PAGE_UNAVAILABLE", "message": "page service not configured"},
+					})
+					return
+				}
+				sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+				target := prefix
+				if sub != "" {
+					target += "/" + sub
+				}
+				c.Request.URL.Path = target
+				pageProxy.ServeHTTP(c.Writer, c.Request)
+			}
+		}
+		protected.Any("/spaces", pageProxyTo("/api/v1/spaces"))
+		protected.Any("/spaces/*proxyPath", pageProxyTo("/api/v1/spaces"))
+		protected.Any("/pages", pageProxyTo("/api/v1/pages"))
+		protected.Any("/pages/*proxyPath", pageProxyTo("/api/v1/pages"))
 	}
 
 	return &HTTPServer{
