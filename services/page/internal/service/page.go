@@ -243,6 +243,17 @@ func (s *pageService) DeletePage(ctx context.Context, actorID, pageID int64) err
 	if _, _, err := s.assertPageMember(ctx, actorID, pageID); err != nil {
 		return err
 	}
+	// Chặn xoá page CÒN CON SỐNG: SoftDelete chỉ đánh dấu deleted_at ở đúng 1 row nên
+	// con vẫn sống với parent_id trỏ tới cha đã xoá → mồ côi. buildPageTree coi node
+	// có cha vắng mặt là gốc nên con bị "thăng" lên top-level một cách âm thầm. Yêu cầu
+	// xoá/di chuyển con trước (409) để không làm hỏng cây. ListChildren đã lọc deleted_at IS NULL.
+	children, err := s.pageRepo.ListChildren(ctx, pageID)
+	if err != nil {
+		return err
+	}
+	if len(children) > 0 {
+		return ErrConflict
+	}
 	if err := s.pageRepo.SoftDelete(ctx, pageID); err != nil {
 		return mapNotFound(err)
 	}

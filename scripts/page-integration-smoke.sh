@@ -42,10 +42,15 @@ docker ps --format '{{.Names}}' | grep -q pm-kafka || { echo "infra chưa chạy
 cat services/page/migrations/001_create_page_schema.up.sql | docker exec -i -e PGPASSWORD="$DBPASS" pm-postgres psql -U "$DBUSER" -d pmdb -v ON_ERROR_STOP=1 >/dev/null 2>&1 && ok "page schema applied" || bad "apply migration lỗi"
 
 say "Start services"
-( cd services/auth && exec go run ./cmd/auth ) >"$LOGDIR/auth.log" 2>&1 & PIDS+=($!); wait_health auth http://localhost:8001/health $! || exit 1
-( cd services/workspace && exec go run ./cmd/workspace ) >"$LOGDIR/workspace.log" 2>&1 & PIDS+=($!); wait_health workspace http://localhost:8002/health $! || exit 1
-( cd services/page && exec go run ./cmd/page ) >"$LOGDIR/page.log" 2>&1 & PIDS+=($!); wait_health page http://localhost:8004/health $! || exit 1
-( cd services/api-gateway && exec go run ./cmd/api-gateway ) >"$LOGDIR/gateway.log" 2>&1 & PIDS+=($!); wait_health gateway http://localhost:8000/health $! || exit 1
+# Ưu tiên binary pre-built ($PMBIN) để KHỎI compile lúc chạy (go-run compile nặng nhiều
+# service cùng lúc có thể làm Docker Desktop crash trên máy ít RAM).
+svc(){ local n="$1" d="$2" pkg="$3"
+  if [ -n "${PMBIN:-}" ] && [ -x "$PMBIN/$n" ]; then ( exec "$PMBIN/$n" ) >"$LOGDIR/$n.log" 2>&1 &
+  else ( cd "$d" && exec go run "$pkg" ) >"$LOGDIR/$n.log" 2>&1 & fi; LASTPID=$!; PIDS+=("$LASTPID"); }
+svc auth services/auth ./cmd/auth;                  wait_health auth http://localhost:8001/health "$LASTPID" || exit 1
+svc workspace services/workspace ./cmd/workspace;   wait_health workspace http://localhost:8002/health "$LASTPID" || exit 1
+svc page services/page ./cmd/page;                  wait_health page http://localhost:8004/health "$LASTPID" || exit 1
+svc gateway services/api-gateway ./cmd/api-gateway; wait_health gateway http://localhost:8000/health "$LASTPID" || exit 1
 sleep 3
 
 TS="$(date +%s)"; EMAIL="page-$TS-$RANDOM@example.com"; PW="password123"; SKEY="S$(( TS % 100000 ))"

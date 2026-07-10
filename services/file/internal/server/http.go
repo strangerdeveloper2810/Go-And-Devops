@@ -71,11 +71,16 @@ func NewHTTPServer(
 
 	return &HTTPServer{
 		srv: &http.Server{
-			Addr:         fmt.Sprintf(":%d", cfg.Server.HTTPPort),
-			Handler:      r,
-			ReadTimeout:  cfg.Server.ReadTimeout, // Chống slow client
-			WriteTimeout: cfg.Server.WriteTimeout,
-			IdleTimeout:  60 * time.Second, // Keep-alive timeout
+			Addr:    fmt.Sprintf(":%d", cfg.Server.HTTPPort),
+			Handler: r,
+			// File-service stream upload/download nhị phân: ReadTimeout/WriteTimeout
+			// là deadline TUYỆT ĐỐI cho việc đọc/ghi TOÀN BỘ 1 request nên sẽ CẮT
+			// NGANG các transfer lớn hoặc chậm (>15s) — Download io.Copy object bytes,
+			// Upload đọc multipart body tới 32MB+. Vì vậy KHÔNG đặt whole-request
+			// timeout cho binary I/O (để 0 = không giới hạn); chỉ dùng ReadHeaderTimeout
+			// chống slow client (slowloris) và IdleTimeout cho keep-alive.
+			ReadHeaderTimeout: cfg.Server.ReadTimeout, // Chống slow client gửi header nhỏ giọt
+			IdleTimeout:       60 * time.Second,        // Keep-alive timeout
 		},
 		logger: logger,
 		cfg:    cfg,

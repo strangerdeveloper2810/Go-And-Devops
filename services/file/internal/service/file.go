@@ -21,14 +21,15 @@ var (
 
 // FileService: business logic + phân quyền (authz) cho domain file.
 // Authz owner-based ở MVP — không có bảng ACL riêng: chỉ chủ file (OwnerID)
-// mới được xóa; đọc metadata/tải nội dung thì caller đã xác thực bất kỳ đều được.
+// mới được đọc metadata / tải nội dung / xóa; file của owner khác → ErrForbidden.
 type FileService interface {
 	// Upload: lưu nội dung lên object storage rồi ghi metadata. owner = caller.
 	Upload(ctx context.Context, ownerID int64, workspaceID *int64, filename, contentType string, reader io.Reader, size int64) (*model.File, error)
-	// GetMetadata: đọc metadata (không check owner) → ErrNotFound nếu thiếu/đã xóa.
-	GetMetadata(ctx context.Context, id int64) (*model.File, error)
-	// Download: stream nội dung từ storage (không check owner). Caller PHẢI Close ReadCloser.
-	Download(ctx context.Context, id int64) (io.ReadCloser, *model.File, error)
+	// GetMetadata: đọc metadata của owner này → ErrNotFound nếu thiếu/đã xóa,
+	// ErrForbidden nếu file thuộc owner khác (chống IDOR).
+	GetMetadata(ctx context.Context, ownerID, id int64) (*model.File, error)
+	// Download: stream nội dung từ storage (chỉ owner mới được tải). Caller PHẢI Close ReadCloser.
+	Download(ctx context.Context, ownerID, id int64) (io.ReadCloser, *model.File, error)
 	// Delete: chỉ owner mới được xóa (soft delete metadata + xóa object best-effort).
 	Delete(ctx context.Context, ownerID, id int64) error
 	// ListByOwner: liệt kê file còn sống của owner này.
@@ -77,19 +78,27 @@ func (s *fileService) Upload(ctx context.Context, ownerID int64, workspaceID *in
 	return f, nil
 }
 
-func (s *fileService) GetMetadata(ctx context.Context, id int64) (*model.File, error) {
+func (s *fileService) GetMetadata(ctx context.Context, ownerID, id int64) (*model.File, error) {
 	f, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, mapNotFound(err)
 	}
+	// Owner-only: chỉ chủ file mới được đọc metadata, else 403 (chống IDOR).
+	if f.OwnerID != ownerID {
+		return nil, ErrForbidden
+	}
 	return f, nil
 }
 
-func (s *fileService) Download(ctx context.Context, id int64) (io.ReadCloser, *model.File, error) {
+func (s *fileService) Download(ctx context.Context, ownerID, id int64) (io.ReadCloser, *model.File, error) {
 	// Đọc metadata trước để lấy s3_key + xác nhận file còn sống (chưa soft-delete).
 	f, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, nil, mapNotFound(err)
+	}
+	// Owner-only: chỉ chủ file mới được tải nội dung, else 403 (chống IDOR).
+	if f.OwnerID != ownerID {
+		return nil, nil, ErrForbidden
 	}
 	// Mở object từ storage; caller nhận ReadCloser và PHẢI Close sau khi stream xong.
 	rc, _, err := s.storage.Get(ctx, f.S3Key)

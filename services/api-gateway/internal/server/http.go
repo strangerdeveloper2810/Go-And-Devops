@@ -266,6 +266,20 @@ func NewHTTPServer(
 				})
 				return
 			}
+			// File upload/download stream body 2 chiều qua gateway. ReadTimeout/
+			// WriteTimeout 15s của http.Server áp cho TOÀN BỘ request → cắt ngang
+			// (truncate) upload multipart lớn lẫn download chậm, dù file-service có
+			// nới timeout riêng thì gateway vẫn cắt. Xoá deadline cho RIÊNG request
+			// /files bằng ResponseController (giữ nguyên 15s cho các route JSON):
+			// SetRead/WriteDeadline với zero-time = bỏ deadline. Best-effort — nếu
+			// writer không hỗ trợ (ErrNotSupported) thì log rồi vẫn proxy như cũ.
+			rc := http.NewResponseController(c.Writer)
+			if err := rc.SetReadDeadline(time.Time{}); err != nil {
+				logger.Warn("clear file proxy read deadline", slog.Any("err", err))
+			}
+			if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+				logger.Warn("clear file proxy write deadline", slog.Any("err", err))
+			}
 			sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
 			target := "/api/v1/files"
 			if sub != "" {

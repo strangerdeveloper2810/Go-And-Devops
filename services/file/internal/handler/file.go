@@ -25,13 +25,37 @@ func NewFileHandler(svc service.FileService) *FileHandler {
 
 // ---- Files ----
 
+// maxUploadSize giới hạn TỔNG kích thước request body của một lần upload. Khác
+// với r.MaxMultipartMemory (chỉ giới hạn RAM đệm, phần dư vẫn ghi ra đĩa), đây là
+// trần cứng cho toàn bộ payload — chống DoS đầy đĩa/RAM bằng file khổng lồ.
+const maxUploadSize = 100 << 20 // 100 MB
+
 // Upload nhận multipart/form-data: field "file" là nội dung upload, field
 // "workspace_id" (tùy chọn) gắn file vào một workspace. owner = caller (X-User-ID).
 func (h *FileHandler) Upload(c *gin.Context) {
+	// Bọc body bằng MaxBytesReader TRƯỚC khi parse: đọc quá maxUploadSize sẽ trả
+	// *http.MaxBytesError → ParseMultipartForm fail → phản hồi 413 (xem dưới),
+	// đồng thời chặn việc spill file tạm khổng lồ ra đĩa.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadSize)
+
+	// ParseMultipartForm (do FormFile kích hoạt) có thể ghi phần vượt ngưỡng RAM
+	// ra file tạm trên đĩa; RemoveAll dọn sạch chúng khi request kết thúc. nil-check
+	// vì form có thể chưa được parse nếu FormFile lỗi sớm.
+	defer func() {
+		if c.Request.MultipartForm != nil {
+			_ = c.Request.MultipartForm.RemoveAll()
+		}
+	}()
+
 	// Đọc phần multipart "file": FormFile mở luôn file (multipart.File) kèm header
-	// chứa Filename/Size/Content-Type. Thiếu field "file" → 400.
+	// chứa Filename/Size/Content-Type. Thiếu field "file" → 400; vượt cap → 413.
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, errorBody("PAYLOAD_TOO_LARGE", "upload exceeds maximum allowed size"))
+			return
+		}
 		c.JSON(http.StatusBadRequest, errorBody("VALIDATION_ERROR", "missing form field \"file\""))
 		return
 	}
@@ -77,13 +101,13 @@ func (h *FileHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"files": list})
 }
 
-// Get trả metadata của 1 file (bất kỳ caller đã xác thực nào cũng đọc được).
+// Get trả metadata của 1 file (owner-only: chỉ chủ file mới đọc được, else 403).
 func (h *FileHandler) Get(c *gin.Context) {
 	id, ok := idParam(c, "id")
 	if !ok {
 		return
 	}
-	f, err := h.svc.GetMetadata(c.Request.Context(), id)
+	f, err := h.svc.GetMetadata(c.Request.Context(), middleware.UserID(c), id)
 	if err != nil {
 		h.respondErr(c, err)
 		return
@@ -98,7 +122,7 @@ func (h *FileHandler) Download(c *gin.Context) {
 	if !ok {
 		return
 	}
-	rc, f, err := h.svc.Download(c.Request.Context(), id)
+	rc, f, err := h.svc.Download(c.Request.Context(), middleware.UserID(c), id)
 	if err != nil {
 		h.respondErr(c, err)
 		return
