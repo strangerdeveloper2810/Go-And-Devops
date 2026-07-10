@@ -93,7 +93,10 @@ jobs:
           cache-dependency-path: ${{ matrix.module }}/go.sum
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.62.2 # v1 (ổn định với action@v6); v2 cần action@v7 + config v2
+          version: v1.64.8 # v1 mới nhất (config v1 giữ nguyên); v2 cần action@v7 + config v2
+          # goinstall = COMPILE linter bằng Go của runner (go1.25 từ go.mod), thay vì tải
+          # binary prebuilt (build bằng go1.23) — tránh lỗi "built go1.23 < target go1.25.0".
+          install-mode: goinstall
           working-directory: ${{ matrix.module }}
           args: --timeout=5m
 
