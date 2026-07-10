@@ -29,6 +29,7 @@ func NewHTTPServer(
 	logger *slog.Logger,
 	metrics *observability.Metrics,
 	authHandler *handler.AuthHandler,
+	userHandler *handler.UserHandler,
 ) *HTTPServer {
 	// Production mode tắt debug log, tối ưu performance.
 	if cfg.Env == "prod" {
@@ -60,6 +61,16 @@ func NewHTTPServer(
 	{
 		v1.POST("/register", authHandler.Register)
 		v1.POST("/login", authHandler.Login)
+	}
+
+	// User-directory (protected): chỉ tới được qua api-gateway đã verify JWT (gateway set
+	// header X-User-ID). RequireUser chặn truy cập trực tiếp không auth. Cho FE resolve
+	// user_id → tên/avatar + tìm user cho picker/@mention.
+	users := r.Group("/api/v1/users")
+	users.Use(middleware.RequireUser())
+	{
+		users.GET("", userHandler.List)    // ?ids=1,2,3 (resolve) hoặc ?search=foo (picker)
+		users.GET("/:id", userHandler.Get) // 1 user
 	}
 
 	return &HTTPServer{

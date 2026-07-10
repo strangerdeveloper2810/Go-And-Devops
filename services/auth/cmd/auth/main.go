@@ -101,10 +101,11 @@ func run() error {
 	userRepo := repository.NewUserRepository(db)
 	authSvc := service.NewAuthService(userRepo, cfg.JWT, userEventProducer)
 	authHandler := handler.NewAuthHandler(authSvc)
+	userHandler := handler.NewUserHandler(userRepo) // user-directory REST cho FE
 
 	// ─── 7. Servers: HTTP (Gin) + gRPC ───────────────────────────
 	// HTTP phục vụ FE; gRPC phục vụ service nội bộ. Cùng 1 authSvc.
-	httpSrv := server.NewHTTPServer(cfg, logger, metrics, authHandler)
+	httpSrv := server.NewHTTPServer(cfg, logger, metrics, authHandler, userHandler)
 	grpcSrv, err := server.NewAuthGRPCServer(cfg, logger, authSvc)
 	if err != nil {
 		return fmt.Errorf("init grpc server: %w", err)

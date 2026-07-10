@@ -154,6 +154,27 @@ func NewHTTPServer(
 			c.JSON(http.StatusOK, gin.H{"user_id": userID, "email": email})
 		})
 
+		// User-directory proxy: forward /api/v1/users[/*] → auth HTTP (dùng lại authProxy).
+		// Nằm ở nhóm protected nên JWTAuth chạy trước → auth-service nhận X-User-ID đã verify.
+		// Đăng ký cả path trần lẫn catch-all (tránh RedirectTrailingSlash như các proxy khác).
+		usersProxy := func(c *gin.Context) {
+			if authProxy == nil {
+				c.JSON(http.StatusBadGateway, gin.H{
+					"error": gin.H{"code": "AUTH_UNAVAILABLE", "message": "auth service not configured"},
+				})
+				return
+			}
+			sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+			target := "/api/v1/users"
+			if sub != "" {
+				target += "/" + sub
+			}
+			c.Request.URL.Path = target
+			authProxy.ServeHTTP(c.Writer, c.Request)
+		}
+		protected.Any("/users", usersProxy)
+		protected.Any("/users/*proxyPath", usersProxy)
+
 		// Workspace proxy: forward /api/v1/workspaces và /api/v1/workspaces/* → workspace HTTP.
 		// Nằm trong nhóm protected nên JWTAuth chạy trước, verify token và inject
 		// header X-User-ID / X-User-Email → workspace-service tin danh tính này.

@@ -13,6 +13,8 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
 	GetByID(ctx context.Context, id int64) (*model.User, error)
 	ListByIDs(ctx context.Context, ids []int64) ([]*model.User, error)
+	// Search: tìm user theo tên/email (ILIKE), giới hạn limit. Cho picker/@mention ở FE.
+	Search(ctx context.Context, query string, limit int) ([]*model.User, error)
 	UpdateStatus(ctx context.Context, id int64, status string) error
 }
 
@@ -110,6 +112,42 @@ func (r *postgreUserRepository) ListByIDs(ctx context.Context, ids []int64) ([]*
 		users = append(users, u)
 	}
 	// Luôn kiểm tra rows.Err() sau vòng lặp — có thể có lỗi giữa chừng.
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate users: %w", err)
+	}
+	return users, nil
+}
+
+// Search: tìm user theo tên hoặc email (ILIKE, không phân biệt hoa thường), ORDER BY name,
+// giới hạn limit. Dùng cho FE picker (chọn assignee/member) + gợi ý @mention.
+func (r *postgreUserRepository) Search(ctx context.Context, query string, limit int) ([]*model.User, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	pattern := "%" + query + "%"
+	sqlq := `
+        SELECT id, email, password_hash, name, avatar_url, status, created_at, updated_at
+        FROM auth.users
+        WHERE name ILIKE $1 OR email ILIKE $1
+        ORDER BY name
+        LIMIT $2`
+	rows, err := r.db.QueryContext(ctx, sqlq, pattern, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
+	}
+	defer rows.Close()
+
+	users := []*model.User{}
+	for rows.Next() {
+		u := &model.User{}
+		if err := rows.Scan(
+			&u.ID, &u.Email, &u.PasswordHash, &u.Name,
+			&u.AvatarURL, &u.Status, &u.CreatedAt, &u.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, u)
+	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate users: %w", err)
 	}
