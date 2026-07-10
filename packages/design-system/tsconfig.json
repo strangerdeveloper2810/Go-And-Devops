@@ -1,0 +1,5 @@
+{
+  "extends": "@pm-platform/tsconfig/react",
+  "compilerOptions": { "noEmit": true, "declaration": false, "declarationMap": false },
+  "include": ["src"]
+}

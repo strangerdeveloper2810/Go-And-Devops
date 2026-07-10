@@ -1,0 +1,16 @@
+{
+  "extends": "@pm-platform/tsconfig/react",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@pm-platform/design-system": ["../packages/design-system/src"],
+      "@pm-platform/hooks": ["../packages/hooks/src"],
+      "@pm-platform/ui": ["../packages/ui/src"],
+      "@pm-platform/api-client": ["../packages/api-client/src"],
+      "@pm-platform/utils": ["../packages/utils/src"]
+    }
+  },
+  "include": ["src"]
+}

@@ -4,17 +4,9 @@ name: backend-ci
 # Go: matrix động theo từng module (mỗi service 1 go.mod). Java: issue-service (Maven).
 # Proto: buf lint. Mỗi module build ở "module mode" (GOWORK=off) như CI/prod thật.
 on:
-  workflow_dispatch: {}   # cho phép chạy tay (dùng cho E2E)
-  pull_request:
-    paths:
-      - "services/**"
-      - "packages/**"
-      - "proto/**"
-      - "go.work"
-      - "go.work.sum"
-      - ".github/workflows/backend-ci.yml"
-  push:
-    branches: [master]
+  # Reusable — orchestrator ci.yml gọi khi job detect thấy thay đổi BE.
+  workflow_call: {}
+  workflow_dispatch: {} # chạy tay (dùng cho E2E)
 
 # Hủy run cũ khi có commit mới trên cùng ref (tiết kiệm CI).
 concurrency:

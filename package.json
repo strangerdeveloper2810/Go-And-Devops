@@ -16,6 +16,16 @@
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "format": "biome format --write .",
+    "dev:web": "pnpm --filter web dev",
+    "dev:gateway": "dotenv -e services/api-gateway/.env -- go -C services/api-gateway run ./cmd/api-gateway",
+    "dev:auth": "dotenv -e services/auth/.env -- go -C services/auth run ./cmd/auth",
+    "dev:workspace": "dotenv -e services/workspace/.env -- go -C services/workspace run ./cmd/workspace",
+    "dev:page": "dotenv -e services/page/.env -- go -C services/page run ./cmd/page",
+    "dev:file": "dotenv -e services/file/.env -- go -C services/file run ./cmd/file",
+    "dev:issue": "dotenv -e services/issue/.env -- mvn -f services/issue/pom.xml spring-boot:run",
+    "dev:be:go": "concurrently -k -n gateway,auth,workspace,page,file -c blue,green,yellow,magenta,cyan \"pnpm dev:gateway\" \"pnpm dev:auth\" \"pnpm dev:workspace\" \"pnpm dev:page\" \"pnpm dev:file\"",
+    "dev:be": "concurrently -k -n gateway,auth,workspace,page,file,issue -c blue,green,yellow,magenta,cyan,red \"pnpm dev:gateway\" \"pnpm dev:auth\" \"pnpm dev:workspace\" \"pnpm dev:page\" \"pnpm dev:file\" \"pnpm dev:issue\"",
+    "dev:all": "concurrently -k -n web,gateway,auth,workspace,page,file -c green,blue,cyan,yellow,magenta,gray \"pnpm dev:web\" \"pnpm dev:gateway\" \"pnpm dev:auth\" \"pnpm dev:workspace\" \"pnpm dev:page\" \"pnpm dev:file\"",
     "infra:dev:up": "docker compose -f infra/dev/docker-compose.yml up -d",
     "infra:dev:down": "docker compose -f infra/dev/docker-compose.yml down",
     "infra:dev:logs": "docker compose -f infra/dev/docker-compose.yml logs -f",
@@ -24,6 +34,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@pm-platform/tsconfig": "workspace:*",
+    "@types/node": "^26.1.1",
+    "concurrently": "^10.0.3",
+    "dotenv-cli": "^11.0.0",
+    "lightningcss": "^1.32.0",
     "turbo": "^2.3.3"
   }
 }
