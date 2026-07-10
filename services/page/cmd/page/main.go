@@ -3,7 +3,7 @@
 // Chịu trách nhiệm:
 //   - REST: /api/v1/spaces/* + /api/v1/pages/* (cho FE gọi qua gateway, nhận X-User-ID)
 //   - Kafka: consume workspace.events (EventEnvelope) → workspaces/members projection
-//            + auth.user.events (RAW UserCreatedEvent) → users projection
+//   - auth.user.events (RAW UserCreatedEvent) → users projection
 //   - Expose /health, /ready, /metrics
 //
 // authz cục bộ dựa trên members_projection dựng từ Kafka (loose coupling — không
