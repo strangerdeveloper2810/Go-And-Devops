@@ -1,5 +1,7 @@
 ---
 description: Run the full E2E smoke tests locally (starts infra + services, curls through gateway)
+argument-hint: "[page|file|both]"
+allowed-tools: Bash, Read
 ---
 Chạy E2E smoke toàn hệ thống ở LOCAL (đắt — chỉ khi cần verify cross-service; CI thường dùng
 integration/unit test). Cần runtime docker ỔN ĐỊNH (khuyến nghị OrbStack).

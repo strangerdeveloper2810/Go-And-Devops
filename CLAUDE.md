@@ -4,8 +4,22 @@ Guide cho **agentic coding** (hybrid: agent generate + người code tay). Đọ
 sửa code. Mục tiêu: agent và người tạo ra code **cùng một convention**. Comment tiếng Việt cho
 domain/business logic, tiếng Anh cho boilerplate — theo đúng codebase.
 
-> Ngoài file này, có `services/CLAUDE.md` (backend Go) và `web/CLAUDE.md` (frontend) tự nạp khi
-> làm trong thư mục tương ứng. Slash command trong `.claude/commands/`, subagent trong `.claude/agents/`.
+### Cấu hình agentic (`.claude/` — commit shared, chỉ ignore local)
+- **CLAUDE.md phân cấp**: file này (root) + `services/CLAUDE.md` (BE) + `web/CLAUDE.md` (FE) — tự nạp
+  theo thư mục đang làm. `CLAUDE.local.md` (gitignored) cho override cá nhân.
+- **`.claude/settings.json`**: permissions (allowlist lệnh dev + deny lệnh nguy hiểm/outward),
+  hooks (SessionStart bơm context · PreToolUse chặn bash phá huỷ · PostToolUse auto-gofmt file `.go`),
+  `enabledMcpjsonServers`. Cá nhân → `.claude/settings.local.json` (gitignored, vd bật `statusLine`).
+- **`.claude/agents/`** (subagent chuyên biệt, dispatch từ main loop): `backend-reviewer`,
+  `frontend-reviewer` (review đối kháng), `test-author` (viết integration/unit test BE+FE).
+- **`.claude/commands/`** (slash command):
+  - Scaffold/dev: `/new-service`, `/add-endpoint`, `/review`, `/e2e`.
+  - **PR lifecycle**: `/create-pr` (tạo PR draft từ nhánh), `/review-pr` (dispatch reviewer lên diff PR),
+    `/merge-pr` (verify CI xanh + mergeable → squash-merge).
+  - **`/ship` = orchestrator**: điều phối các subagent → verify build → review BE/FE (song song) →
+    test-author viết test → tạo PR. Dùng khi muốn "đưa thay đổi lên PR" một mạch.
+- **`.claude/skills/`**: skill canonical (vd `create-migration`) — load on-demand, có supporting file.
+- **`.claude/hooks/`**: script cho hooks. **`.claude/statusline.sh`**: opt-in (bật ở settings.local.json).
 
 ## Sản phẩm
 PM Platform = **Jira + Confluence + AI/MCP** nội bộ (thay Jira+Confluence subscription). Microservices,

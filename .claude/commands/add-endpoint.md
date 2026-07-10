@@ -1,5 +1,7 @@
 ---
 description: Add a REST endpoint to an existing service following repo patterns (handler→service→repo + gateway)
+argument-hint: "<METHOD /path — service — mô tả>"
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 Thêm REST endpoint theo mô tả: **$ARGUMENTS** (vd "GET /api/v1/spaces/:id/pages/tree cho page-service").
 Đọc `CLAUDE.md` + `services/CLAUDE.md` + service liên quan trước.

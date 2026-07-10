@@ -1,5 +1,7 @@
 ---
 description: Scaffold a new Go microservice mirroring services/workspace (Clean Arch + gateway wiring)
+argument-hint: "<service-name>"
+allowed-tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 Tạo Go service mới tên **$1** (vd `notification`), mirror `services/workspace` EXACT. Đọc
 `CLAUDE.md` + `services/CLAUDE.md` trước.

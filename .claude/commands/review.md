@@ -1,5 +1,7 @@
 ---
 description: Adversarially review the current git diff (backend) for real defects before commit/PR
+argument-hint: "[service hoặc trọng tâm, tuỳ chọn]"
+allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
 Review các thay đổi backend hiện tại bằng subagent `backend-reviewer`.
 

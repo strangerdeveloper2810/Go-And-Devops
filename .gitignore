@@ -18,6 +18,8 @@ desktop.ini
 .claude/settings.local.json
 .claude/worktrees/
 .claude/*.local.*
+CLAUDE.local.md
+**/CLAUDE.local.md
 
 # ─── Environment ─────────────────────────────────────────────
 .env
