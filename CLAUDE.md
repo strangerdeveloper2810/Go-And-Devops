@@ -18,7 +18,13 @@ domain/business logic, tiếng Anh cho boilerplate — theo đúng codebase.
     `/merge-pr` (verify CI xanh + mergeable → squash-merge).
   - **`/ship` = orchestrator**: điều phối các subagent → verify build → review BE/FE (song song) →
     test-author viết test → tạo PR. Dùng khi muốn "đưa thay đổi lên PR" một mạch.
-- **`.claude/skills/`**: skill canonical (vd `create-migration`) — load on-demand, có supporting file.
+- **`.claude/skills/`** (Claude **tự nạp** khi ngữ cảnh khớp `description`, on-demand — khác command
+  ở chỗ không cần người gõ `/`): catalog theo dự án:
+  - BE: `kafka-event` (producer/consumer), `authz-projection` (projection authz event-driven),
+    `add-grpc` (proto + buf + gRPC), `gateway-proxy` (đăng ký service vào gateway),
+    `clean-arch-layer` (handler→service→repo), `create-migration`, `java-issue-feature` (Spring/Flyway).
+  - FE: `react-data-fetching` (TanStack Query + gateway + JWT), `react-component-ui` (shadcn/Tailwind + XSS-safe html).
+  - Test: `go-integration-test` (testcontainers), `fe-test` (Vitest + MSW).
 - **`.claude/hooks/`**: script cho hooks. **`.claude/statusline.sh`**: opt-in (bật ở settings.local.json).
 
 ## Sản phẩm
