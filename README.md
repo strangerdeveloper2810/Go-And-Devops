@@ -1,131 +1,169 @@
 # PM Platform
 
-Internal project management platform combining Jira-like issue tracking, Confluence-like documentation, and AI/MCP integration. Self-hosted replacement for paid Atlassian subscription, built as a microservice learning project for Go + Java backend interview preparation.
+Internal project-management platform combining Jira-like issue tracking, Confluence-like documentation, and AI/MCP integration. A self-hosted replacement for a paid Atlassian subscription, built as an event-driven microservice project for Go + Java backend interview preparation.
 
 ## Status
 
-**Phase 0 — Foundation** (in progress, started May 2026)
+**Phase 1 — Core services** (in progress)
 
-Target MVP: 5-6 months. Real internal team adoption Q4 2026.
+Six backend services are implemented, event-driven, and covered by CI. The system already supports: register/login (JWT), workspaces/projects/members/roles, Jira-style issues (workflow, optimistic locking), Confluence-style spaces/pages, and file upload/download via MinIO — all reachable through the gateway.
+
+| Milestone | State |
+|---|---|
+| auth · workspace · issue · page · file · api-gateway | ✅ built + merged |
+| Kafka event bus + local authz projections | ✅ |
+| Backend CI (build/vet/test + lint + buf + Java) | ✅ |
+| Agentic coding setup (`.claude/`) | ✅ |
+| Frontend (React) | ⏳ contract defined (`web/CLAUDE.md`), code pending |
+| ai · mcp-server · realtime · search · notification · report · audit | ⏳ planned |
+
+Target MVP: 5–6 months. Real internal team adoption Q4 2026.
 
 ## Project Goals
 
-1. **Real internal use**: Replace team's Jira + Confluence subscription (4-5 users → 10-20 users)
-2. **Interview prep**: Build credible Go + microservice portfolio for mid-senior backend roles (target: Axon, VNG, ANZ — CV submission June-August 2026)
-3. **AI-native workflow**: Deep integration of LLM and MCP server for daily team operations
+1. **Real internal use** — replace the team's Jira + Confluence subscription (4–5 → 10–20 users)
+2. **Interview prep** — build a credible Go + microservice portfolio for mid-senior backend roles (target: Axon, VNG, ANZ)
+3. **AI-native workflow** — deep LLM + MCP integration for daily team operations
 
 ## Architecture
 
-**14 services**:
+Microservices, event-driven, one Postgres with **a private schema per service**. The gateway is the only REST entry point for the frontend: it verifies the JWT via the auth gRPC service, then injects `X-User-ID` / `X-User-Email` so downstream services trust that identity without re-verifying.
 
-| Layer | Services |
-|---|---|
-| Edge | Traefik (TLS, routing) |
-| Gateway | api-gateway (Go) |
-| Core (Go) | auth, workspace, page, file, ai, mcp-server, realtime |
-| Core (Java) | issue, search, notification, report, audit |
-| Collab (Node) | collab-server (Hocuspocus + Yjs) |
-| Frontend | React 19 + rsbuild + TypeScript |
+```
+FE (React) ──REST──► api-gateway ──(reverse proxy + gRPC verify)──► services
+                          │  JWTAuth verifies token via auth gRPC, injects X-User-ID / X-User-Email
+                          ▼
+  auth · workspace · issue · page · file  ──(Kafka events, EventEnvelope)──►  (loose coupling)
+```
 
-**Infrastructure**:
-- PostgreSQL 16 (schema-per-service) + pgvector
-- Redis (cache, session, pub/sub)
-- Kafka KRaft (event bus)
-- Elasticsearch 8 (search)
-- MinIO (object storage)
-- OpenTelemetry + Prometheus + Grafana + Loki + Tempo
+- **No service queries another service's schema.** Cross-service data goes over gRPC (sync) or a **local projection** built from Kafka events (async, used for authz).
+- Services scoped by workspace/project consume `workspace.events` + `auth.user.events` → build `*_projection` tables → check membership **locally**.
 
-**AI providers**: Anthropic Claude (reasoning) + DeepSeek (cheap bulk) with cost budget and prompt caching.
+### Implemented services
 
-## Tech Stack Summary
+| Service | Stack | HTTP | gRPC | Schema | Role |
+|---|---|---|---|---|---|
+| api-gateway | Go / Gin | 8000 | 9000 | (Redis) | REST in, reverse proxy + gRPC verify out |
+| auth | Go / Gin | 8001 | 9001 | `auth` | register/login (JWT), user directory, VerifyToken |
+| workspace | Go / Gin | 8002 | 9002 | `workspace` | workspaces / projects / members / roles |
+| issue | **Java / Spring** | 8003 | 9003 | `issue` | Jira core: issues / workflow / sprint / board |
+| page | Go / Gin | 8004 | 9004 | `page` | Confluence: spaces / pages |
+| file | Go | 8005 | 9005 | `file` | upload / download via MinIO |
+
+**Port scheme**: services HTTP `80xx`, gRPC `90xx`. Infra lives on `91xx` (MinIO S3 `9100`, console `9011`) to avoid colliding with the gRPC range.
+
+### Infrastructure (dev)
+
+- **PostgreSQL 16** — schema-per-service
+- **Kafka (KRaft)** — event bus (`EventEnvelope{event_type, workspace_id, actor_id, payload}`)
+- **MinIO** — object storage for files
+- (Planned) Redis, Elasticsearch, pgvector, OpenTelemetry + Prometheus + Grafana + Loki + Tempo
+
+### Planned services (design)
+
+`ai` (Claude + DeepSeek router, RAG), `mcp-server`, `realtime` (WebSocket), `search` (Elasticsearch), `notification`, `report`, `audit`, and a `collab-server` (Hocuspocus + Yjs) for collaborative editing. See the design doc for the full 14-service vision.
+
+## Tech Stack
 
 ### Backend
-- **Go**: Gin, gRPC, pgx + sqlc, golang-migrate, segmentio/kafka-go, OpenTelemetry
-- **Java**: Spring Boot 3.x (Java 21), Spring Data JPA, Flyway, Spring Kafka, Spring Data Elasticsearch
-- **Node**: Hocuspocus (TipTap's official Yjs server)
+- **Go 1.25** — Gin, gRPC, `database/sql` + pgx, golang-migrate, segmentio/kafka-go
+- **Java 17** — Spring Boot 3.3, Spring Data JPA, Flyway, Spring Kafka, `@Version` optimistic locking
+- **Proto** — buf (source in `proto/`, generated Go in `packages/proto-go/`)
 
-### Frontend
-- React 19, rsbuild, TypeScript strict
-- React Router v7, TanStack Query v5, Zustand
-- TipTap + Yjs (collaborative editing)
-- shadcn/ui + Tailwind CSS v4
-- Biome (lint + format)
+### Frontend (planned)
+- React 19, rsbuild, TypeScript strict; React Router v7, TanStack Query v5, Zustand
+- TipTap + Yjs (collaborative editing); shadcn/ui + Tailwind CSS v4; Biome
 
 ### Communication
-- **Sync**: REST (FE↔BE), gRPC + Protobuf (BE↔BE)
-- **Async**: Kafka with Avro/Protobuf schemas (Schema Registry)
-- **Realtime**: WebSocket (general events via Redis pub/sub, Yjs binary via Hocuspocus)
-
-### Tooling
-- Monorepo: Turborepo
-- CI/CD: GitHub Actions
-- Container registry: GHCR
-- Pre-commit: lefthook + commitlint
+- **Sync**: REST (FE ↔ BE), gRPC + Protobuf (BE ↔ BE)
+- **Async**: Kafka (at-least-once consumers, `RequireAll` producers)
 
 ## Repository Structure
 
 ```
 .
-├── docs/
-│   ├── plans/                                          # Design docs and roadmap
-│   │   ├── 2026-05-24-pm-platform-design.md           # Full system design (9 sections)
-│   │   └── 2026-01-10-devops-learning-curriculum.md   # Backend + DevOps learning curriculum (PM Platform)
-│   └── theory/                                         # Conceptual learning notes
-│       ├── 01-clean-architecture.md
-│       ├── 02-go-syntax-basics.md
-│       ├── 03-goroutine-channel.md
-│       ├── 04-project-recap-phase1.md
-│       └── 05-dockerfile-multi-stage.md
-└── (services + frontend coming in Phase 0)
+├── services/                    # one Go module (go.mod) per service, or Maven (issue)
+│   ├── api-gateway/  auth/  workspace/  page/  file/   # Go
+│   ├── issue/                                          # Java / Spring (Maven)
+│   └── CLAUDE.md                                       # backend conventions (agent + human)
+├── packages/proto-go/           # Go code generated from proto (buf generate)
+├── proto/pm/v1/                 # proto source (auth, workspace, issue, common)
+├── infra/dev/docker-compose.yml # postgres + kafka + minio
+├── scripts/*-integration-smoke.sh   # E2E smoke tests (run manually)
+├── web/CLAUDE.md                # frontend conventions + API contract
+├── docs/plans/                  # design docs + implementation plans
+├── docs/theory/                 # learning notes (Vietnamese)
+├── .github/workflows/backend-ci.yml
+├── .claude/                     # agentic coding config (see below)
+└── CLAUDE.md                    # root conventions + architecture
 ```
-
-## Roadmap
-
-| Phase | Duration | Focus |
-|---|---|---|
-| 0 — Foundation | 2-3w | Monorepo, infra (docker compose), service skeletons, observability |
-| 1 — Core CRUD | 4-5w | Auth, workspace, issue, page (no realtime/AI) |
-| 2 — Realtime + Editor | 3-4w | Hocuspocus collab, TipTap+Yjs, Kanban board with WebSocket |
-| 3 — Search + Notification | 3w | Elasticsearch indexing, email + Zalo bot |
-| 4 — AI + MCP | 3-4w | Claude+DeepSeek router, RAG, MCP server for Claude Code/Cursor |
-| 5 — Report + Audit + Polish | 2-3w | Burndown, velocity, audit log dashboard |
-| 6 — Migration + Cutover | 2-3w | Jira/Confluence import tool, real team switch |
-
-**Total**: 18-21 weeks.
-
-See [`docs/plans/2026-05-24-pm-platform-design.md`](docs/plans/2026-05-24-pm-platform-design.md) for full design including data architecture, communication patterns, AI integration details, and migration strategy.
 
 ## Development
 
-### Prerequisites (Phase 0+)
-- Docker + Docker Compose (OrbStack on macOS recommended)
-- Go 1.22+
-- Java 21 (Temurin or GraalVM)
-- Node.js 20+ with pnpm
+### Prerequisites
+- Docker + Docker Compose (**OrbStack** recommended on macOS — lighter/more stable)
+- Go 1.25+
+- Java 17 (Temurin) + Maven (for issue-service)
 - Buf CLI (Protobuf tooling)
 
-### Quick Start
+### Build & test (module-mode, like CI/prod)
 
-Pending Phase 0 completion. Will be:
+`go.work` is dev-only; CI and prod build each module in isolation with `GOWORK=off`, so verify that way:
 
 ```bash
-pnpm install
-docker compose -f infra/docker-compose.dev.yml up -d
-pnpm turbo dev
+# One Go service
+GOWORK=off go -C services/<svc> build ./...
+GOWORK=off go -C services/<svc> vet ./...
+gofmt -l services/<svc>            # must be empty (except *.pb.go)
+go   -C services/<svc> test ./...
+
+# Java issue-service
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 mvn -f services/issue/pom.xml -DskipTests package
+
+# Proto (after editing a .proto)
+cd proto && buf lint && buf generate
 ```
+
+### Run infra
+
+```bash
+docker compose -f infra/dev/docker-compose.yml up -d postgres kafka minio
+```
+
+### E2E smoke (manual)
+
+Full E2E (multiple services + Kafka) is expensive and timing-flaky, so it runs **manually**, not on every PR:
+
+```bash
+bash scripts/page-integration-smoke.sh   # needs infra up
+```
+
+## Agentic Coding (`.claude/`)
+
+This repo is set up for **hybrid development** — Claude generates code and a human writes code by hand, both following the same conventions. Config is committed (shared); only local overrides are gitignored.
+
+- **Hierarchical `CLAUDE.md`** — root + `services/CLAUDE.md` (backend) + `web/CLAUDE.md` (frontend), auto-loaded by directory.
+- **`.claude/agents/`** — specialized subagents: `backend-reviewer`, `frontend-reviewer` (adversarial review), `test-author` (integration/unit tests).
+- **`.claude/commands/`** — slash commands you trigger deliberately: `/new-service`, `/add-endpoint`, `/review`, `/e2e`, PR lifecycle (`/create-pr`, `/review-pr`, `/merge-pr`), and `/ship` (orchestrator: verify → review BE/FE in parallel → write tests → open PR).
+- **`.claude/skills/`** — model-invoked capabilities auto-loaded when relevant, e.g. `create-migration`.
+- **`.claude/hooks/`** — `guard-bash` (block destructive commands), `session-context` (inject branch state), auto-`gofmt` on save.
+
+> **Command vs skill**: a **command** is a human-triggered entrypoint (you type `/ship` — best for actions with side effects like merging). A **skill** is a capability Claude loads on its own when the context matches (e.g. it applies migration conventions automatically while writing SQL). PR/merge actions stay commands on purpose so nothing runs a merge without an explicit trigger.
+
+## CI (`.github/workflows/backend-ci.yml`)
+
+Every PR runs, per Go module: `gofmt` + `vet` + `build` + `test -race` (module-mode), plus `golangci-lint` (advisory), `buf lint`, and Java `mvn verify`. E2E is a **manual** (`workflow_dispatch`) job — not a per-PR gate. Code must pass `GOWORK=off -mod=readonly build + vet` + `gofmt` before pushing (`go.work` can hide breakage — run the real check).
 
 ## Conventions
 
-### Code Style
-- Frontend: Arrow function default; regular `function` only when `this` binding is required
-- Backend Go: Standard `gofmt` + `golangci-lint`
-- Backend Java: Spring Boot defaults + Checkstyle
-- Commits: Conventional Commits (`feat:`, `fix:`, `chore:`, etc.)
+- **Frontend**: arrow function by default; regular `function` only when `this` binding is required.
+- **Backend Go**: `gofmt` + `golangci-lint`; Clean Architecture (`handler → service → repository`), DI via constructors.
+- **Backend Java**: Spring Boot defaults; Flyway owns the schema.
+- **Commits**: Conventional Commits (`feat:`, `fix:`, `chore:`, …).
+- **Comment language**: Vietnamese for domain/business logic, English for boilerplate.
+- **Docs**: theory notes (`docs/theory/`) in Vietnamese; UI Vietnamese-first.
 
-### Documentation Language
-- Code comments: English
-- Theory notes (`docs/theory/`): Vietnamese
-- User-facing UI: Vietnamese default, English secondary
+See [`CLAUDE.md`](CLAUDE.md) for the full mandatory patterns (Kafka producer/consumer rules, gateway proxy, migrations, audit lessons) and [`docs/plans/2026-05-24-pm-platform-design.md`](docs/plans/2026-05-24-pm-platform-design.md) for the full system design.
 
 ## License
 
