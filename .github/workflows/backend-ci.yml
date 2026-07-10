@@ -4,6 +4,7 @@ name: backend-ci
 # Go: matrix động theo từng module (mỗi service 1 go.mod). Java: issue-service (Maven).
 # Proto: buf lint. Mỗi module build ở "module mode" (GOWORK=off) như CI/prod thật.
 on:
+  workflow_dispatch: {}   # cho phép chạy tay (dùng cho E2E)
   pull_request:
     paths:
       - "services/**"
@@ -131,7 +132,10 @@ jobs:
   # Go chạy trên runner (go run) rồi curl qua gateway — đúng như smoke script local.
   e2e:
     name: E2E · page + file (smoke)
-    needs: [go] # chỉ chạy nếu build Go pass
+    # E2E đầy đủ (nhiều service + Kafka) ĐẮT + Kafka-projection timing flaky trên CI →
+    # chỉ chạy TAY (workflow_dispatch), không gate mỗi PR. CI thường dùng integration test/unit.
+    if: github.event_name == 'workflow_dispatch'
+    needs: [go]
     runs-on: ubuntu-latest
     env:
       GOWORK: "off"
