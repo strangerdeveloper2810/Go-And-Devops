@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "includeCoAuthoredBy": true,
+  "permissions": {
+    "allow": [
+      "Bash(go build:*)",
+      "Bash(go vet:*)",
+      "Bash(go test:*)",
+      "Bash(go run:*)",
+      "Bash(go mod tidy:*)",
+      "Bash(go work sync:*)",
+      "Bash(gofmt:*)",
+      "Bash(goimports:*)",
+      "Bash(golangci-lint run:*)",
+      "Bash(mvn:*)",
+      "Bash(buf lint:*)",
+      "Bash(buf generate:*)",
+      "Bash(docker compose -f infra/dev/docker-compose.yml up:*)",
+      "Bash(docker compose -f infra/dev/docker-compose.yml ps:*)",
+      "Bash(docker compose -f infra/dev/docker-compose.yml logs:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker logs:*)",
+      "Bash(jq:*)",
+      "Bash(nc -z:*)",
+      "Bash(lsof:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh pr create:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(docker compose:* down -v:*)",
+      "Read(**/.env)",
+      "Read(**/*.local.*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/session-context.sh\""
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-bash.sh\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.go) command -v gofmt >/dev/null 2>&1 && gofmt -w \"$f\" >/dev/null 2>&1 || true;; esac"
+          }
+        ]
+      }
+    ]
+  }
+}
