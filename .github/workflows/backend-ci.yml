@@ -124,3 +124,48 @@ jobs:
       # + tải protoc. verify = compile + test (chưa có test → chỉ build/package).
       - name: mvn verify
         run: mvn -B -ntp -f services/issue/pom.xml verify
+
+  # ── E2E smoke: auth + workspace + page + file + gateway trên infra thật ───
+  # Chạy trên runner GitHub (docker ỔN ĐỊNH), KHÔNG cần Docker Desktop máy dev.
+  # Hạ tầng (postgres/kafka/minio) khởi bằng chính docker-compose của repo; các service
+  # Go chạy trên runner (go run) rồi curl qua gateway — đúng như smoke script local.
+  e2e:
+    name: E2E · page + file (smoke)
+    needs: [go] # chỉ chạy nếu build Go pass
+    runs-on: ubuntu-latest
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/auth/go.mod
+          cache-dependency-path: services/auth/go.sum
+      - name: Start infra (postgres + kafka + minio)
+        run: docker compose -f infra/dev/docker-compose.yml up -d postgres kafka minio
+      - name: Wait for postgres + kafka
+        run: |
+          for i in $(seq 1 60); do
+            if docker exec pm-postgres pg_isready -U postgres -d pmdb >/dev/null 2>&1 \
+               && nc -z localhost 9094; then echo "infra ready"; exit 0; fi
+            sleep 3
+          done
+          echo "infra không sẵn sàng sau 180s"; docker ps; exit 1
+      - name: Apply migrations (auth, workspace, page, file)
+        run: |
+          set -e
+          for f in services/auth/migrations/*.up.sql \
+                   services/workspace/migrations/*.up.sql \
+                   services/page/migrations/*.up.sql \
+                   services/file/migrations/*.up.sql; do
+            echo "== applying $f =="
+            docker exec -i -e PGPASSWORD=postgres pm-postgres \
+              psql -U postgres -d pmdb -v ON_ERROR_STOP=1 < "$f"
+          done
+      - name: Page E2E (register→workspace→space→page→hierarchy)
+        run: bash scripts/page-integration-smoke.sh
+      - name: File E2E (upload→download→delete via MinIO)
+        run: bash scripts/file-integration-smoke.sh
+      - name: Dump logs on failure
+        if: failure()
+        run: docker ps -a && docker logs pm-kafka 2>&1 | tail -30
