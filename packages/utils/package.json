@@ -11,5 +11,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check src/",
     "clean": "rm -rf node_modules"
+  },
+  "dependencies": {
+    "@pm-platform/api-client": "workspace:*"
   }
 }

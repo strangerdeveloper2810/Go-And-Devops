@@ -20,6 +20,13 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+
+  /** Convert unknown error (từ catch) thành ApiError */
+  static from(error: unknown): ApiError {
+    if (error instanceof ApiError) return error;
+    if (error instanceof Error) return new ApiError(0, 'CLIENT_ERROR', error.message);
+    return new ApiError(0, 'UNKNOWN', String(error));
+  }
 }
 
 /** Parse response body thành ApiError nếu có, fallback về statusText */

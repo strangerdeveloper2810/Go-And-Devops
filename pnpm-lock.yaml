@@ -59,7 +59,11 @@ importers:
         specifier: ^19.0.0
         version: 19.2.7
 
-  packages/utils: {}
+  packages/utils:
+    dependencies:
+      '@pm-platform/api-client':
+        specifier: workspace:*
+        version: link:../api-client
 
   web:
     dependencies:
