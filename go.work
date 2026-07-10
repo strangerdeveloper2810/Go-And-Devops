@@ -12,5 +12,7 @@ use (
 	./packages/proto-go
 	./services/api-gateway
 	./services/auth
+	./services/file
+	./services/page
 	./services/workspace
 )

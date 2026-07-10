@@ -92,6 +92,30 @@ func NewHTTPServer(
 		}
 	}
 
+	// Page reverse proxy target (page-service HTTP). Cùng pattern với issue.
+	// Nil nếu addr trống/parse lỗi → route trả 502 thay vì crash.
+	var pageProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.PageHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.page_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			pageProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
+	// File reverse proxy target (file-service HTTP). Cùng pattern với page.
+	// Nil nếu addr trống/parse lỗi → route trả 502 thay vì crash.
+	var fileProxy *httputil.ReverseProxy
+	if addr := cfg.Upstream.FileHTTPAddr; addr != "" {
+		u, err := url.Parse("http://" + addr)
+		if err != nil {
+			logger.Error("invalid upstream.file_http_addr", slog.String("addr", addr), slog.Any("err", err))
+		} else {
+			fileProxy = httputil.NewSingleHostReverseProxy(u)
+		}
+	}
+
 	// ─── Public routes — không cần JWT ───────────────────────────
 	v1 := r.Group("/api/v1")
 	{
@@ -195,6 +219,77 @@ func NewHTTPServer(
 		protected.Any("/issues", issueProxyTo("/api/v1/issues"))
 		protected.Any("/issues/*proxyPath", issueProxyTo("/api/v1/issues"))
 		protected.Any("/projects/*proxyPath", issueProxyTo("/api/v1/projects"))
+
+		// Page proxy: forward /api/v1/spaces[/*] và /api/v1/pages[/*] → page HTTP.
+		// page-service (Confluence core) sở hữu CẢ space-scoped ("/spaces/{key}",
+		// "/spaces/{key}/pages"…) LẪN page-scoped ("/pages/{id}", "/pages/{id}/children"…)
+		// paths. Authz = workspace membership (page-service tự check qua projections).
+		//
+		// JWTAuth (nhóm protected) đã set X-User-ID / X-User-Email lên c.Request.Header →
+		// reverse proxy forward nguyên request nên page-service nhận danh tính đã verify.
+		//
+		// Đăng ký CẢ path trần LẪN catch-all "*proxyPath" cho mỗi collection (cùng lý do
+		// RedirectTrailingSlash như workspace/issue ở trên: nếu chỉ có catch-all thì gin
+		// sẽ 301 "/spaces" → "/spaces/" trước khi JWTAuth chạy).
+		//
+		// pageProxyTo dựng lại path đích từ prefix cố định + phần wildcard, tái dùng cho
+		// cả hai prefix (giống issueProxyTo).
+		pageProxyTo := func(prefix string) gin.HandlerFunc {
+			return func(c *gin.Context) {
+				if pageProxy == nil {
+					c.JSON(http.StatusBadGateway, gin.H{
+						"error": gin.H{"code": "PAGE_UNAVAILABLE", "message": "page service not configured"},
+					})
+					return
+				}
+				sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+				target := prefix
+				if sub != "" {
+					target += "/" + sub
+				}
+				c.Request.URL.Path = target
+				pageProxy.ServeHTTP(c.Writer, c.Request)
+			}
+		}
+		protected.Any("/spaces", pageProxyTo("/api/v1/spaces"))
+		protected.Any("/spaces/*proxyPath", pageProxyTo("/api/v1/spaces"))
+		protected.Any("/pages", pageProxyTo("/api/v1/pages"))
+		protected.Any("/pages/*proxyPath", pageProxyTo("/api/v1/pages"))
+
+		// File proxy: forward /api/v1/files[/*] → file-service HTTP (upload/download/metadata).
+		// Đăng ký CẢ path trần LẪN catch-all (cùng lý do RedirectTrailingSlash). X-User-ID
+		// đã được JWTAuth set → file-service dùng làm owner. Multipart upload forward nguyên request.
+		fileProxyHandler := func(c *gin.Context) {
+			if fileProxy == nil {
+				c.JSON(http.StatusBadGateway, gin.H{
+					"error": gin.H{"code": "FILE_UNAVAILABLE", "message": "file service not configured"},
+				})
+				return
+			}
+			// File upload/download stream body 2 chiều qua gateway. ReadTimeout/
+			// WriteTimeout 15s của http.Server áp cho TOÀN BỘ request → cắt ngang
+			// (truncate) upload multipart lớn lẫn download chậm, dù file-service có
+			// nới timeout riêng thì gateway vẫn cắt. Xoá deadline cho RIÊNG request
+			// /files bằng ResponseController (giữ nguyên 15s cho các route JSON):
+			// SetRead/WriteDeadline với zero-time = bỏ deadline. Best-effort — nếu
+			// writer không hỗ trợ (ErrNotSupported) thì log rồi vẫn proxy như cũ.
+			rc := http.NewResponseController(c.Writer)
+			if err := rc.SetReadDeadline(time.Time{}); err != nil {
+				logger.Warn("clear file proxy read deadline", slog.Any("err", err))
+			}
+			if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+				logger.Warn("clear file proxy write deadline", slog.Any("err", err))
+			}
+			sub := strings.TrimPrefix(c.Param("proxyPath"), "/")
+			target := "/api/v1/files"
+			if sub != "" {
+				target += "/" + sub
+			}
+			c.Request.URL.Path = target
+			fileProxy.ServeHTTP(c.Writer, c.Request)
+		}
+		protected.Any("/files", fileProxyHandler)
+		protected.Any("/files/*proxyPath", fileProxyHandler)
 	}
 
 	return &HTTPServer{
