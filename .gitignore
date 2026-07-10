@@ -12,8 +12,12 @@ desktop.ini
 *.swo
 *~
 
-# ─── Claude Code local config ────────────────────────────────
-.claude/
+# ─── Claude Code ─────────────────────────────────────────────
+# Commit config CHIA SẺ cho team (settings.json, agents/, commands/, skills/);
+# chỉ ignore phần LOCAL/cá nhân.
+.claude/settings.local.json
+.claude/worktrees/
+.claude/*.local.*
 
 # ─── Environment ─────────────────────────────────────────────
 .env
