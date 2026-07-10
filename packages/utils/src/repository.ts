@@ -1,4 +1,4 @@
-import type { HttpClient, RequestConfig, Result } from '@pm-platform/api-client';
+import type { HttpClient, RequestConfig } from '@pm-platform/api-client';
 
 /**
  * Repository Pattern — base factory cho CRUD operations trên một resource.
@@ -14,8 +14,7 @@ export const createRepository = <T>(basePath: string) => {
 
   return {
     /** GET /resource — lấy danh sách */
-    getAll: (client: HttpClient, config?: RequestConfig) =>
-      client.safeGet<T[]>(path, config),
+    getAll: (client: HttpClient, config?: RequestConfig) => client.safeGet<T[]>(path, config),
 
     /** GET /resource/:id — lấy 1 item */
     getById: (client: HttpClient, id: string, config?: RequestConfig) =>

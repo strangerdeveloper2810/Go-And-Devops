@@ -1,9 +1,9 @@
-import { toApiError, ApiError } from './errors';
+import { ApiError, toApiError } from './errors';
 import { applyRequestMiddleware, applyResponseMiddleware } from './middleware';
 import type { RequestMiddleware, ResponseMiddleware } from './middleware';
-import { Ok, Err } from './result';
+import { Err, Ok } from './result';
 import type { Result } from './result';
-import type { RequestConfig, QueryParams } from './types';
+import type { QueryParams, RequestConfig } from './types';
 
 //--------------------------------------------------------------------------------------------------
 // Types
@@ -64,15 +64,14 @@ const toQueryString = (params: QueryParams): string => {
 //--------------------------------------------------------------------------------------------------
 
 export const createClient = (options: ClientOptions): HttpClient => {
-  const {
-    baseUrl,
-    getToken,
-    requestMiddleware = [],
-    responseMiddleware = [],
-    onRequest,
-  } = options;
+  const { baseUrl, getToken, requestMiddleware = [], responseMiddleware = [], onRequest } = options;
 
-  const request = async <T>(method: string, path: string, body?: unknown, config?: RequestConfig): Promise<T> => {
+  const request = async <T>(
+    method: string,
+    path: string,
+    body?: unknown,
+    config?: RequestConfig,
+  ): Promise<T> => {
     let url = `${baseUrl}${path}${config?.params ? toQueryString(config.params) : ''}`;
 
     const headers: Record<string, string> = {};
@@ -82,7 +81,7 @@ export const createClient = (options: ClientOptions): HttpClient => {
 
     const token = await getToken();
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers.Authorization = `Bearer ${token}`;
     }
 
     let init: RequestInit = { method, headers, signal: config?.signal };
@@ -122,8 +121,7 @@ export const createClient = (options: ClientOptions): HttpClient => {
 
   return {
     // Throw-based (backward-compatible)
-    get: <T>(path: string, config?: RequestConfig) =>
-      request<T>('GET', path, undefined, config),
+    get: <T>(path: string, config?: RequestConfig) => request<T>('GET', path, undefined, config),
     post: <T>(path: string, body?: unknown, config?: RequestConfig) =>
       request<T>('POST', path, body, config),
     put: <T>(path: string, body?: unknown, config?: RequestConfig) =>

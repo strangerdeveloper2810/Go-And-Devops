@@ -12,9 +12,7 @@ import type { ApiError } from './errors';
  *   console.error(result.error.code, result.error.message);
  * }
  */
-export type Result<T, E = ApiError> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+export type Result<T, E = ApiError> = { ok: true; value: T } | { ok: false; error: E };
 
 /** Tạo Result thành công */
 export const Ok = <T>(value: T): Result<T, never> => ({ ok: true, value });

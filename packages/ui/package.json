@@ -13,12 +13,18 @@
     "clean": "rm -rf node_modules"
   },
   "dependencies": {
-    "@pm-platform/design-system": "workspace:*",
     "@emotion/react": "^11.13.0",
     "@emotion/styled": "^11.13.0",
-    "@mui/material": "^9.2.0"
+    "@mui/material": "^9.2.0",
+    "@pm-platform/design-system": "workspace:*",
+    "dompurify": "^3.4.11"
   },
   "peerDependencies": {
     "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@pm-platform/tsconfig": "workspace:*",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
   }
 }

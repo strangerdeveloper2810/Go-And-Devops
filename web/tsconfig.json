@@ -1,8 +1,9 @@
 {
-  "extends": "../tsconfig.base.json",
+  "extends": "@pm-platform/tsconfig/react",
   "compilerOptions": {
-    "outDir": "dist",
-    "baseUrl": ".",
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
     "paths": {
       "@pm-platform/design-system": ["../packages/design-system/src"],
       "@pm-platform/hooks": ["../packages/hooks/src"],

@@ -15,9 +15,7 @@ export type RequestMiddleware = (
  *
  * @returns Response đã được transform (có thể async)
  */
-export type ResponseMiddleware = (
-  res: Response,
-) => Response | Promise<Response>;
+export type ResponseMiddleware = (res: Response) => Response | Promise<Response>;
 
 //--------------------------------------------------------------------------------------------------
 // Middleware chains

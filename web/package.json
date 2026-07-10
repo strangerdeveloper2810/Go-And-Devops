@@ -12,19 +12,21 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
-    "@pm-platform/design-system": "workspace:*",
-    "@pm-platform/hooks": "workspace:*",
-    "@pm-platform/ui": "workspace:*",
-    "@pm-platform/api-client": "workspace:*",
-    "@pm-platform/utils": "workspace:*",
-    "@tanstack/react-query": "^5.0.0",
     "@emotion/react": "^11.13.0",
     "@emotion/styled": "^11.13.0",
     "@mui/material": "^9.2.0",
+    "@pm-platform/api-client": "workspace:*",
+    "@pm-platform/design-system": "workspace:*",
+    "@pm-platform/hooks": "workspace:*",
+    "@pm-platform/ui": "workspace:*",
+    "@pm-platform/utils": "workspace:*",
+    "@tanstack/react-query": "^5.0.0",
+    "dompurify": "^3.4.11",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@pm-platform/tsconfig": "workspace:*",
     "@rsbuild/core": "^2.1.5",
     "@rsbuild/plugin-babel": "^2.0.1",
     "@rsbuild/plugin-react": "^2.1.0",

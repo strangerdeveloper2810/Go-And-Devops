@@ -14,5 +14,8 @@
   },
   "dependencies": {
     "@pm-platform/api-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@pm-platform/tsconfig": "workspace:*"
   }
 }

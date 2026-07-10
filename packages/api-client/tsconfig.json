@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "outDir": "dist" },
+  "extends": "@pm-platform/tsconfig/base",
+  "compilerOptions": { "noEmit": true, "declaration": false, "declarationMap": false },
   "include": ["src"]
 }

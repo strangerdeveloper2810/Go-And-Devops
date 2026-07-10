@@ -1,5 +1,8 @@
 /** Cấu hình query params — value được serialize thành string */
-export type QueryParams = Record<string, string | number | boolean | (string | number)[] | undefined>;
+export type QueryParams = Record<
+  string,
+  string | number | boolean | (string | number)[] | undefined
+>;
 
 export interface RequestConfig {
   /** Query params tự động append vào URL */
