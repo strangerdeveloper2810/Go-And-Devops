@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@pm-platform/design-system": ["../packages/design-system/src"],
+      "@pm-platform/hooks": ["../packages/hooks/src"],
+      "@pm-platform/ui": ["../packages/ui/src"],
+      "@pm-platform/utils": ["../packages/utils/src"]
+    }
+  },
+  "include": ["src"]
+}

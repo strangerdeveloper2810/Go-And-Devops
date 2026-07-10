@@ -4,4 +4,5 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "web"
   - "services/collab-server"

@@ -1,0 +1,18 @@
+{
+  "name": "@pm-platform/hooks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src/",
+    "clean": "rm -rf node_modules"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
