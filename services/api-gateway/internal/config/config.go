@@ -56,7 +56,7 @@ type UpstreamConfig struct {
 	PageAddr          string `mapstructure:"page_addr"`           // gRPC addr
 	PageHTTPAddr      string `mapstructure:"page_http_addr"`      // HTTP addr (reverse proxy /spaces/* + /pages/*)
 	FileAddr          string `mapstructure:"file_addr"`
-	FileHTTPAddr      string `mapstructure:"file_http_addr"`      // HTTP addr (reverse proxy /files/*)
+	FileHTTPAddr      string `mapstructure:"file_http_addr"` // HTTP addr (reverse proxy /files/*)
 	SearchAddr        string `mapstructure:"search_addr"`
 	NotificationAddr  string `mapstructure:"notification_addr"`
 	AIAddr            string `mapstructure:"ai_addr"`

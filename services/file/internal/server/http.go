@@ -80,7 +80,7 @@ func NewHTTPServer(
 			// timeout cho binary I/O (để 0 = không giới hạn); chỉ dùng ReadHeaderTimeout
 			// chống slow client (slowloris) và IdleTimeout cho keep-alive.
 			ReadHeaderTimeout: cfg.Server.ReadTimeout, // Chống slow client gửi header nhỏ giọt
-			IdleTimeout:       60 * time.Second,        // Keep-alive timeout
+			IdleTimeout:       60 * time.Second,       // Keep-alive timeout
 		},
 		logger: logger,
 		cfg:    cfg,

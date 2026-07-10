@@ -1,0 +1,19 @@
+# golangci-lint (v1) — dùng bởi job golangci-lint trong backend-ci (advisory).
+# Bật lại errcheck + chuyển job sang blocking khi code đã dọn sạch.
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  disable:
+    - errcheck # nhiều error chưa check trong code hiện tại — bật lại sau khi dọn
+  # còn lại giữ default v1: govet, gosimple, ineffassign, staticcheck, unused
+
+issues:
+  # Không giới hạn số issue mỗi linter/dòng (thấy hết để dọn).
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Bỏ qua file protobuf sinh tự động.
+    - path: '\.pb\.go$'
+      linters: [govet, staticcheck, gosimple, ineffassign, unused]

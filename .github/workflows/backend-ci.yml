@@ -1,0 +1,126 @@
+name: backend-ci
+
+# Lint + build + test cho backend trên mỗi PR (và push master).
+# Go: matrix động theo từng module (mỗi service 1 go.mod). Java: issue-service (Maven).
+# Proto: buf lint. Mỗi module build ở "module mode" (GOWORK=off) như CI/prod thật.
+on:
+  pull_request:
+    paths:
+      - "services/**"
+      - "packages/**"
+      - "proto/**"
+      - "go.work"
+      - "go.work.sum"
+      - ".github/workflows/backend-ci.yml"
+  push:
+    branches: [master]
+
+# Hủy run cũ khi có commit mới trên cùng ref (tiết kiệm CI).
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Phát hiện động các Go module (mỗi thư mục có go.mod) → matrix ──────────
+  discover:
+    name: Discover Go modules
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          modules=$(find services packages -maxdepth 2 -name go.mod \
+            | sed 's#/go.mod$##' | sort | jq -Rsc 'split("\n") | map(select(length > 0))')
+          echo "modules=$modules" >> "$GITHUB_OUTPUT"
+          echo "Discovered modules: $modules"
+
+  # ── Go: gofmt + vet + build + test cho từng module ────────────────────────
+  go:
+    name: Go · ${{ matrix.module }}
+    needs: discover
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+    env:
+      GOWORK: "off" # build module-mode qua replace directive của go.mod (như prod)
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: gofmt (bỏ qua *.pb.go sinh tự động)
+        run: |
+          bad=$(gofmt -l . | { grep -v -E '\.pb\.go$' || true; })
+          if [ -n "$bad" ]; then
+            echo "::error::Các file chưa gofmt:"; echo "$bad"; exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: go build
+        run: go build ./...
+      - name: go test
+        run: go test -race ./...
+
+  # ── golangci-lint (advisory: chưa chặn merge, chỉ báo — bật blocking sau) ──
+  golangci:
+    name: golangci-lint · ${{ matrix.module }}
+    needs: discover
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJSON(needs.discover.outputs.modules) }}
+    env:
+      GOWORK: "off"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.62.2 # v1 (ổn định với action@v6); v2 cần action@v7 + config v2
+          working-directory: ${{ matrix.module }}
+          args: --timeout=5m
+
+  # ── Proto: buf lint ───────────────────────────────────────────────────────
+  proto:
+    name: Proto · buf lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: buf lint
+        working-directory: proto
+        run: buf lint
+
+  # ── Java: issue-service (build + test, Testcontainers khi có test) ─────────
+  java:
+    name: Java · issue-service
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      # protobuf-maven-plugin tự sinh Java từ ../../proto (đã có sẵn trong checkout)
+      # + tải protoc. verify = compile + test (chưa có test → chỉ build/package).
+      - name: mvn verify
+        run: mvn -B -ntp -f services/issue/pom.xml verify
