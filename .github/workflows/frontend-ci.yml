@@ -1,0 +1,34 @@
+name: frontend-ci
+
+# Lint (Biome) + typecheck (turbo) + build (rsbuild) cho FE monorepo (web + packages JS).
+# Reusable — orchestrator ci.yml gọi khi job detect thấy thay đổi FE.
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fe:
+    name: FE · lint · typecheck · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # đọc version từ field packageManager trong package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: Lint + format (Biome)
+        run: pnpm exec biome ci .
+      - name: Typecheck (mọi package)
+        run: pnpm turbo run typecheck
+      - name: Build web
+        run: pnpm --filter web build

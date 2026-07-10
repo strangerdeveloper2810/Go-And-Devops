@@ -1,0 +1,65 @@
+name: ci
+
+# Điểm vào CI: job "detect" xác định thay đổi thuộc BE hay FE, rồi gọi reusable workflow tương ứng.
+# - Chỉ đổi file .md / docs / .claude → workflow KHÔNG chạy (paths-ignore).
+# - Đổi code BE → chạy backend-ci. Đổi code FE → chạy frontend-ci. Đổi cả hai → chạy cả hai.
+on:
+  pull_request:
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE", ".gitignore", ".claude/**"]
+  push:
+    branches: [master]
+    paths-ignore: ["**/*.md", "docs/**", "LICENSE", ".gitignore", ".claude/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'services/**'
+              - 'packages/proto-go/**'
+              - 'proto/**'
+              - 'go.work'
+              - 'go.work.sum'
+              - '.github/workflows/backend-ci.yml'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'web/**'
+              - 'packages/ui/**'
+              - 'packages/design-system/**'
+              - 'packages/api-client/**'
+              - 'packages/hooks/**'
+              - 'packages/utils/**'
+              - 'packages/config/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'turbo.json'
+              - 'biome.json'
+              - '.github/workflows/frontend-ci.yml'
+              - '.github/workflows/ci.yml'
+
+  backend:
+    name: Backend
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    uses: ./.github/workflows/backend-ci.yml
+    secrets: inherit
+
+  frontend:
+    name: Frontend
+    needs: detect
+    if: needs.detect.outputs.frontend == 'true'
+    uses: ./.github/workflows/frontend-ci.yml
+    secrets: inherit
