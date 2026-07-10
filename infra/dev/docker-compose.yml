@@ -153,7 +153,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
       - "9000:9000"   # S3 API
-      - "9001:9001"   # Console UI
+      - "9011:9001"   # Console UI (host 9011: tránh đụng auth gRPC host :9001)
     volumes:
       - minio_data:/data
     networks:
