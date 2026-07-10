@@ -14,7 +14,7 @@ export PM_API_GATEWAY_UPSTREAM_AUTH_ADDR="localhost:9001"; export PM_API_GATEWAY
 export PM_API_GATEWAY_UPSTREAM_FILE_HTTP_ADDR="localhost:8005"
 _c="${PM_AUTH_DATABASE_URL#*://}"; _c="${_c%%@*}"; DBUSER="${_c%%:*}"; DBPASS="${_c#*:}"
 export PM_FILE_DATABASE_URL="${PM_FILE_DATABASE_URL//@postgres:/@localhost:}"
-export PM_FILE_MINIO_ENDPOINT="${PM_FILE_MINIO_ENDPOINT:-localhost:9000}"
+export PM_FILE_MINIO_ENDPOINT="${PM_FILE_MINIO_ENDPOINT:-localhost:9100}"
 
 say(){ printf '\n\033[1m== %s ==\033[0m\n' "$*"; }; ok(){ PASS=$((PASS+1)); printf '  \033[32mPASS\033[0m %s\n' "$*"; }; bad(){ FAIL=$((FAIL+1)); printf '  \033[31mFAIL\033[0m %s\n' "$*"; }
 cleanup(){ say "Teardown"; for pid in ${PIDS[@]+"${PIDS[@]}"}; do [ -n "${pid:-}" ] && kill "$pid" 2>/dev/null && wait "$pid" 2>/dev/null; done

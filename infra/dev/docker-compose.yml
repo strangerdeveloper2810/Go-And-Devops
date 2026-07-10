@@ -152,8 +152,10 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "9000:9000"   # S3 API
-      - "9011:9001"   # Console UI (host 9011: tránh đụng auth gRPC host :9001)
+      # Host 91xx: đưa minio RA KHỎI dải port service (gateway :9000, auth :9001,
+      # workspace :9002...) — tránh 'address already in use' khi chạy service + minio cùng lúc.
+      - "9100:9000"   # S3 API   (host 9100 → container 9000)
+      - "9011:9001"   # Console UI (host 9011)
     volumes:
       - minio_data:/data
     networks:

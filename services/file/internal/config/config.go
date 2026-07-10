@@ -31,7 +31,7 @@ type DatabaseConfig struct {
 
 // MinIOConfig — kết nối object storage (MinIO, S3-compatible). File-service
 // lưu nội dung file (attachment) vào bucket, chỉ giữ metadata trong Postgres.
-// Endpoint: host:port của MinIO (dev = localhost:9000). AccessKey/SecretKey:
+// Endpoint: host:port của MinIO (dev = localhost:9100). AccessKey/SecretKey:
 // credentials (dev = minioadmin/minioadmin). Bucket: bucket mặc định chứa
 // attachment. UseSSL: bật TLS khi nói chuyện với MinIO (dev = false).
 type MinIOConfig struct {
@@ -71,7 +71,7 @@ func Load() (*Config, error) {
 	v.SetDefault("server.read_timeout", "15s")
 	v.SetDefault("server.write_timeout", "15s")
 	v.SetDefault("server.shutdown_timeout", "30s")
-	v.SetDefault("minio.endpoint", "localhost:9000")
+	v.SetDefault("minio.endpoint", "localhost:9100")
 	v.SetDefault("minio.bucket", "pm-attachments")
 	v.SetDefault("minio.use_ssl", false)
 	v.SetDefault("otel.enabled", false)
