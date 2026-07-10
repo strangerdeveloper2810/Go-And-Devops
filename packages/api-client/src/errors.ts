@@ -23,11 +23,11 @@ export class ApiError extends Error {
 }
 
 /** Parse response body thành ApiError nếu có, fallback về statusText */
-export async function toApiError(res: Response): Promise<ApiError> {
+export const toApiError = async (res: Response): Promise<ApiError> => {
   try {
     const body = (await res.json()) as ApiErrorBody;
     return new ApiError(res.status, body.error.code, body.error.message);
   } catch {
     return new ApiError(res.status, 'UNKNOWN', res.statusText || 'Unknown error');
   }
-}
+};

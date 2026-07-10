@@ -24,7 +24,7 @@ export interface HttpClient {
 //--------------------------------------------------------------------------------------------------
 
 /** Build query string, bỏ qua undefined/null values */
-function toQueryString(params: QueryParams): string {
+const toQueryString = (params: QueryParams): string => {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null) continue;
@@ -36,16 +36,16 @@ function toQueryString(params: QueryParams): string {
   }
   const qs = search.toString();
   return qs ? `?${qs}` : '';
-}
+};
 
 //--------------------------------------------------------------------------------------------------
 // Client factory
 //--------------------------------------------------------------------------------------------------
 
-export function createClient(options: ClientOptions): HttpClient {
+export const createClient = (options: ClientOptions): HttpClient => {
   const { baseUrl, getToken, onRequest } = options;
 
-  async function request<T>(method: string, path: string, body?: unknown, config?: RequestConfig): Promise<T> {
+  const request = async <T>(method: string, path: string, body?: unknown, config?: RequestConfig): Promise<T> => {
     const url = `${baseUrl}${path}${config?.params ? toQueryString(config.params) : ''}`;
 
     const headers: Record<string, string> = {};
@@ -77,26 +77,20 @@ export function createClient(options: ClientOptions): HttpClient {
     if (res.status === 204) return undefined as T;
 
     return res.json() as Promise<T>;
-  }
+  };
 
   return {
-    get<T>(path: string, config?: RequestConfig) {
-      return request<T>('GET', path, undefined, config);
-    },
-    post<T>(path: string, body?: unknown, config?: RequestConfig) {
-      return request<T>('POST', path, body, config);
-    },
-    put<T>(path: string, body?: unknown, config?: RequestConfig) {
-      return request<T>('PUT', path, body, config);
-    },
-    patch<T>(path: string, body?: unknown, config?: RequestConfig) {
-      return request<T>('PATCH', path, body, config);
-    },
-    delete<T>(path: string, config?: RequestConfig) {
-      return request<T>('DELETE', path, undefined, config);
-    },
-    upload<T>(path: string, formData: FormData, config?: RequestConfig) {
-      return request<T>('POST', path, formData, config);
-    },
+    get: <T>(path: string, config?: RequestConfig) =>
+      request<T>('GET', path, undefined, config),
+    post: <T>(path: string, body?: unknown, config?: RequestConfig) =>
+      request<T>('POST', path, body, config),
+    put: <T>(path: string, body?: unknown, config?: RequestConfig) =>
+      request<T>('PUT', path, body, config),
+    patch: <T>(path: string, body?: unknown, config?: RequestConfig) =>
+      request<T>('PATCH', path, body, config),
+    delete: <T>(path: string, config?: RequestConfig) =>
+      request<T>('DELETE', path, undefined, config),
+    upload: <T>(path: string, formData: FormData, config?: RequestConfig) =>
+      request<T>('POST', path, formData, config),
   };
-}
+};
